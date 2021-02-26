@@ -4,9 +4,9 @@
 const fetch = require('node-fetch');
 const moment = require('moment');
 const cron = require('node-cron');
+var markdownEscape = require('markdown-escape');
 
 const Polkadot = require('./polkadot');
-const MongoDB = require('./mongodb');
 const Data = require('./data');
 const Messaging = require('./messaging');
 const logger = require('./logging');
@@ -33,78 +33,101 @@ async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
     }
 }
 
-async function sendValidatorList(chatId, message, targetChatState) {
-    const validators = await Data.getValidatorsForChat(chatId);
-    if (validators.length < 1) {
-        Messaging.sendNoValidators(chatId);
-    } else if (validators.length == 1) {
-        Messaging.sendValidatorInfo(chatId, validators[0]);
-        Data.setChatState(chatId, Data.ChatState.IDLE);
-    } else {
-        Messaging.sendValidatorSelection(validators, chatId, message);
-        Data.setChatState(chatId, targetChatState);
-    }
+async function sendValidatorList(chatId, validators, message, targetChatState) {
+    Messaging.sendValidatorSelection(validators, chatId, message);
+    Data.setChatState(chatId, targetChatState);
 }
 
 async function processTelegramUpdate(update) {
-    logger.info(`Processing Telegram update id ${update.update_id}.`);
-    if (!update.message || !update.message.text) {
-        return;
-    }
-    let text = update.message.text;
-    if (!text || text.trim().length == 0) {
-        // err
-        logger.error(`Message text is null or empty.`);
-        return;
-    }
-    text = text.trim();
-    let chatCollection = await MongoDB.getChatCollection();
     const chatId = update.message.chat.id;
-    var chat = await chatCollection.findOne({ chatId: chatId });
-    if (text == '/start' || text == '/help') {
-        logger.info(`${text} received.`);
-        if (!chat) {
-            logger.info(`Chat does not exist, create it.`);
-            // persist chat
-            chat = {
-                chatId: chatId,
-                state: Data.ChatState.IDLE
-            };
-            await chatCollection.insertOne(chat);
+    var isGroupChat = update.message.chat.type == 'group';
+    let chat = await Data.getChatById(chatId);
+    if (!chat) {
+        logger.info(`Chat does not exist, create it.`);
+        chat = await Data.createChat(chatId);
+    }
+    logger.info(`Processing Telegram update id ${update.update_id}.`);
+    var text;
+    if (isGroupChat) {
+        if (update.message && update.message.group_chat_created) {
+            Messaging.sendHelp(chatId);
+            return;
+        } else if (update.message.text) {
+            text = update.message.text.trim();
+            text = text.replace(`@${process.env.TELEGRAM_BOT_USERNAME}`, '');
         } else {
-            Data.setChatState(chatId, Data.ChatState.IDLE);
+            Messaging.sendUnrecognizedCommand(chatId);
+            return;
         }
+    } else if (update.message.text) {
+        text = update.message.text.trim();
+    } else {
+        logger.error(`Message text is null or empty.`);
+        Messaging.sendUnrecognizedCommand(chatId);
+        return;
+    }
+    if (text == `/start` || text == `/help`) {
+        logger.info(`${text} received.`);
+        Data.setChatState(chatId, Data.ChatState.IDLE);
         Messaging.sendHelp(chatId);
         return;
-    } else if (text == '/add') {
-        logger.info(`/add received.`);
-        const validators = await Data.getValidatorsForChat(chatId);
-        if (validators.length >= maxValidatorsPerChat) {
-            await Messaging.sendChatHasMaxValidators(chatId, maxValidatorsPerChat);
-            Data.setChatState(chatId, Data.ChatState.IDLE);
+    } else if (text.startsWith(`/add`)) {
+        const tokens = text.split(/\s+/);
+        if (
+            (tokens.length == 1 && tokens[0] == `/add`)
+            || (tokens.length > 1 && !Polkadot.isValidAddress(tokens[1]))
+        ) {
+            logger.info(`/add received.`);
+            const validators = await Data.getValidatorsForChat(chatId);
+            if (validators.length >= maxValidatorsPerChat) {
+                await Messaging.sendChatHasMaxValidators(chatId, maxValidatorsPerChat);
+                Data.setChatState(chatId, Data.ChatState.IDLE);
+            } else {
+                await Messaging.sendAddValidator(chatId);
+                Data.setChatState(chatId, Data.ChatState.ADD);
+            }
+        } else if (tokens.length > 1 && Polkadot.isValidAddress(tokens[1])) {
+            await Data.setChatState(chatId, Data.ChatState.ADD);
+            processAddRequest(tokens[1], chatId);
         } else {
-            await Messaging.sendAddValidator(chatId);
-            Data.setChatState(chatId, Data.ChatState.ADD);
+            await Messaging.sendUnrecognizedCommand(chatId);
         }
-    } else if (text == '/remove') {
+    } else if (text == `/remove`) {
         logger.info(`/remove received.`);
+        const validators = await Data.getValidatorsForChat(chatId);
+        if (validators.length < 1) {
+            Messaging.sendNoValidators(chatId);
+            return;
+        }
         await sendValidatorList(
             chatId,
+            validators,
             'Sure, please select the validator to be removed.',
             Data.ChatState.REMOVE
         );
-    } else if (text == '/validatorinfo') {
+    } else if (text == `/validatorinfo`) {
         logger.info(`/validatorinfo received.`);
-        await sendValidatorList(
-            chatId,
-            'Ok, please select the validator from below.',
-            Data.ChatState.VALIDATOR_INFO
-        );
+        const validators = await Data.getValidatorsForChat(chatId);
+        if (validators.length < 1) {
+            Messaging.sendNoValidators(chatId);
+        } else if (validators.length == 1) {
+            Messaging.sendValidatorInfo(chatId, validators[0]);
+            Data.setChatState(chatId, Data.ChatState.IDLE);
+        } else {
+            await sendValidatorList(
+                chatId,
+                validators,
+                'Ok, please select the validator from below.',
+                Data.ChatState.VALIDATOR_INFO
+            );
+        }
     } else {
         logger.info(`Received message [${text}] on state [${chat.state}].`);
         switch (chat.state) {
             case Data.ChatState.IDLE:
-                await Messaging.sendUnrecognizedCommand(chatId);
+                if (!isGroupChat) {
+                    await Messaging.sendUnrecognizedCommand(chatId);
+                }
                 break;
             case Data.ChatState.ADD:
                 processAddRequest(text, chatId);
@@ -227,11 +250,11 @@ async function updateValidator(validator) {
         const w3fValidator = validatorFetchResult.validator;
         const updates = {};
         let updateCount = 0;
-        let message = validator.name;
+        let message = markdownEscape(validator.name);
         // check name
         if (validator.name != w3fValidator.name) {
             updates.name = w3fValidator.name;
-            message += '\n🏷 has a new name ' + updates.name;
+            message += '\n🏷 has a new name ' + markdownEscape(updates.name);
             updateCount++;
         }
         // compare rank
@@ -338,7 +361,7 @@ async function updateValidators() {
 }
 
 function start1KVUpdateJob() {
-    cron.schedule('*/10 * * * *', () => {
+    cron.schedule('*/5 * * * *', () => {
         updateValidators();
     });
 }

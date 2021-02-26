@@ -22,6 +22,7 @@
         "@polkadot/api": "^3.9.3",
         "dedent": "^0.7.0",
         "dotenv": "^8.2.0",
+        "markdown-escape": "^1.1.0",
         "moment": "^2.29.1",
         "mongodb": "^3.6.3",
         "node-cron": "^2.0.3",

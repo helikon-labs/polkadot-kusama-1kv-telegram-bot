@@ -5,6 +5,7 @@ const fetch = require('node-fetch');
 const dedent = require('dedent');
 const moment = require('moment');
 const logger = require('./logging');
+var markdownEscape = require('markdown-escape');
 require('dotenv').config();
 
 const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
@@ -59,10 +60,13 @@ async function sendUnexpectedError(chatId) {
 }
 
 async function sendValidatorInfo(chatId, validator) {
+
     // name
-    let validatorInfo = validator.name;
+    let validatorInfo = markdownEscape(validator.name);
+    
     // stash
     validatorInfo += `\n📍 Address ${validator.stashAddress.slice(0, 16)}..${validator.stashAddress.slice(-16)}`;
+
     // rank
     validatorInfo += `\n📊 Has rank ${validator.rank}`;
     // 1KV validity
@@ -71,6 +75,7 @@ async function sendValidatorInfo(chatId, validator) {
     } else {
         validatorInfo += `\n❌ Is not valid for 1KV: ${validator.invalidityReasons}`;
     }
+    
     // online / offline
     if (validator.onlineSince > 0) {
         const onlineSince = moment.utc(new Date(validator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss');
@@ -121,12 +126,12 @@ async function sendValidatorInfo(chatId, validator) {
 }
 
 async function sendValidatorNotFoundByName(chatId, name) {
-    const message = `${name} was not found.`;
+    const message = markdownEscape(name) + 'was not found.';
     await sendMessage(chatId, message);
 }
 
 async function sendValidatorRemoved(chatId, validatorName) {
-    const message = `${validatorName} has been removed.`;
+    const message = markdownEscape(validatorName) + ' has been removed.';
     await sendMessage(chatId, message);
 }
 

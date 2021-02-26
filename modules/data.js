@@ -58,12 +58,29 @@ async function setTelegramUpdateOffset(updateOffset) {
     );
 }
 
+async function getChatById(chatId) {
+    let chatCollection = await MongoDB.getChatCollection();
+    return await chatCollection.findOne(
+        { chatId: chatId }
+    );
+}
+
 async function setChatState(chatId, state) {
     let chatCollection = await MongoDB.getChatCollection();
     await chatCollection.updateOne(
         { chatId: chatId },
         { $set: { state: state } }
     );
+}
+
+async function createChat(chatId) {
+    let chatCollection = await MongoDB.getChatCollection();
+    chat = {
+        chatId: chatId,
+        state: ChatState.IDLE
+    };
+    await chatCollection.insertOne(chat);
+    return await getChatById(chatId);
 }
 
 async function fetchValidator(stashAddress) {
@@ -184,5 +201,7 @@ module.exports = {
     getTelegramUpdateOffset: getTelegramUpdateOffset,
     getValidatorsForChat: getValidatorsForChat,
     getAllValidators: getAllValidators,
-    updateValidator: updateValidator
+    updateValidator: updateValidator,
+    getChatById: getChatById,
+    createChat: createChat
 }
