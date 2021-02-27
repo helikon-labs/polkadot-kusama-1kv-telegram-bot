@@ -36,4 +36,4 @@ One may add multiple validators to the chat and the bot will notify the user whe
 
 Don't forget to turn on push notifications for Telegram to receive alerts about your validator.
 
-🎉 Happy validating!
+🎉 Happy validating, and you're much welcome to tip my stash `GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg` if you feel like it:)

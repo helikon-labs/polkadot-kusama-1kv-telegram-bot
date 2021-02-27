@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 const dedent = require('dedent');
 const moment = require('moment');
 const logger = require('./logging');
-var markdownEscape = require('markdown-escape');
+const markdownEscape = require('markdown-escape');
 require('dotenv').config();
 
 const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
@@ -126,7 +126,7 @@ async function sendValidatorInfo(chatId, validator) {
 }
 
 async function sendValidatorNotFoundByName(chatId, name) {
-    const message = markdownEscape(name) + 'was not found.';
+    const message = markdownEscape(name) + ' was not found.';
     await sendMessage(chatId, message);
 }
 

@@ -4,7 +4,7 @@
 const fetch = require('node-fetch');
 const moment = require('moment');
 const cron = require('node-cron');
-var markdownEscape = require('markdown-escape');
+const markdownEscape = require('markdown-escape');
 
 const Polkadot = require('./polkadot');
 const Data = require('./data');
