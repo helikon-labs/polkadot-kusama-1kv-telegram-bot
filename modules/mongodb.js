@@ -9,7 +9,8 @@ const mongoConfig = {
     db: 'kusama_1kv_telegram_bot',
     telegramConfigCollection: 'telegram_config',
     validatorCollection: 'validators',
-    chatCollection: 'chats'
+    chatCollection: 'chats',
+    pendingBlockNotificationCollection: 'pending_block_notifications'
 }
 
 let mongoDBClient;
@@ -53,10 +54,15 @@ async function getTelegramConfigCollection() {
     return await mongoDB.collection(mongoConfig.telegramConfigCollection);
 }
 
+async function getPendingBlockNotificationCollection() {
+    return await mongoDB.collection(mongoConfig.pendingBlockNotificationCollection);
+}
+
 module.exports = {
     connectMongoDB: connectMongoDB,
     disconnectMongoDB: disconnectMongoDB,
     getValidatorCollection: getValidatorCollection,
     getChatCollection: getChatCollection,
-    getTelegramConfigCollection: getTelegramConfigCollection
+    getTelegramConfigCollection: getTelegramConfigCollection,
+    getPendingBlockNotificationCollection: getPendingBlockNotificationCollection
 };

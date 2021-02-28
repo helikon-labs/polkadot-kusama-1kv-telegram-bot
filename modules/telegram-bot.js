@@ -14,6 +14,7 @@ require('dotenv').config();
 
 const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
 const maxValidatorsPerChat = 20;
+var blockAuthoredNotificationDebounce;
 
 async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
     try {
@@ -38,7 +39,75 @@ async function sendValidatorList(chatId, validators, message, targetChatState) {
     Data.setChatState(chatId, targetChatState);
 }
 
+async function processCallbackQuery(query) {
+    logger.info('Will process callback query.');
+    const queryId = query.id;
+    if (!query.message) {
+        logger.error('Callback query has empty message. Ignore.');
+        Messaging.answerCallbackQuery(queryId, 'Invalid query.');
+        return;
+    }
+    if (!query.message.chat) {
+        logger.error('Callback query has empty chat. Ignore.');
+        Messaging.answerCallbackQuery(queryId, 'Invalid query.');
+        return;
+    }
+    if (!query.data)  {
+        logger.error('Callback query has empty data. Ignore.');
+        Messaging.answerCallbackQuery(queryId, 'Invalid query.');
+        return;
+    }
+    let data;
+    try{
+        data = JSON.parse(query.data);
+    } catch (error) {
+        logger.info('Callback query has non-JSON data - probably a button. Ignore.');
+        Messaging.answerCallbackQuery(queryId);
+        return;
+    }
+    const chatId = query.message.chat.id;
+    const chat = await Data.getChatById(chatId);
+    if (query.message.message_id != chat.lastSettingsMessageId) {
+        logger.info('Callback query not coming from the last settings message. Ignore.');
+        Messaging.answerCallbackQuery(queryId, 'Invalid query.');
+        return;
+    } else {
+        logger.info('Callback query coming from the last settings message:)');
+    }
+    const blockNotificationPeriod = data.blockNotificationPeriod;
+    if (typeof blockNotificationPeriod !== 'undefined') {
+        if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE
+            || blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY
+            || blockNotificationPeriod == Data.BlockNotificationPeriod.THREE_HOURLY
+            || blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END) {
+            // set chat's block notification period
+            const successful = await Data.setChatBlockNotificationPeriod(chatId, blockNotificationPeriod);
+            // respond
+            if (successful) {
+                chat.blockNotificationPeriod = blockNotificationPeriod;
+                Messaging.answerCallbackQuery(queryId, 'Settings updated!');
+                // update settings message
+                await Messaging.sendSettings(chat, chat.lastSettingsMessageId);
+                // send pending notifications
+                if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
+                    sendPendingNotificationsForChat(chatId);
+                }
+            } else {
+                Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
+            }
+        } else {
+            logger.info(`Invalid block notification period ${blockNotificationPeriod}. Ignore.`);
+            Messaging.answerCallbackQuery(queryId, 'Invalid data.');
+            return;
+        }
+    }
+}
+
 async function processTelegramUpdate(update) {
+    if (update.callback_query) {
+        processCallbackQuery(update.callback_query);
+        return;
+    }
     const chatId = update.message.chat.id;
     var isGroupChat = update.message.chat.type == 'group';
     let chat = await Data.getChatById(chatId);
@@ -121,6 +190,18 @@ async function processTelegramUpdate(update) {
                 Data.ChatState.VALIDATOR_INFO
             );
         }
+    } else if (text == `/settings`) {
+        logger.info(`/settings received.`);
+        const message = await Messaging.sendSettings(chat);
+        if (chat.lastSettingsMessageId) {
+            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsCommandMessageId);
+            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsMessageId);
+        }
+        if (message != null) {
+            Data.setChatLastSettingsCommandMessageId(chat.chatId, update.message.message_id);
+            Data.setChatLastSettingsMessageId(chat.chatId, message.message_id);
+        }
+        Data.setChatState(chatId, Data.ChatState.IDLE);
     } else {
         logger.info(`Received message [${text}] on state [${chat.state}].`);
         switch (chat.state) {
@@ -366,19 +447,88 @@ function start1KVUpdateJob() {
     });
 }
 
+function startPendingNotificationSender() {
+    cron.schedule('0 * * * *', () => {
+        sendPendingNotifications(Data.BlockNotificationPeriod.HOURLY);
+    });
+    cron.schedule('0 */3 * * *', () => {
+        sendPendingNotifications(Data.BlockNotificationPeriod.THREE_HOURLY);
+    });
+}
+
+async function sendPendingNotifications(notificationPeriod) {
+    const notifications = await Data.getPendingBlockNotifications(notificationPeriod);
+    for (let notification of notifications) {
+        let validator = await Data.getValidatorByStashAddress(notification.stashAddress);
+        if (validator) {
+            const response = await Messaging.sendBlocksAuthored(
+                notification.chatId,
+                validator,
+                notification.blockNumbers
+            );
+            if (response != null) {
+                Data.deletePendingBlockNotification(notification);
+            }
+        }
+    }
+}
+
+async function sendPendingNotificationsForChat(chatId) {
+    const notifications = await Data.getPendingBlockNotificationsForChat(chatId);
+    for (let notification of notifications) {
+        let validator = await Data.getValidatorByStashAddress(notification.stashAddress);
+        if (validator) {
+            const response = await Messaging.sendBlocksAuthored(
+                notification.chatId,
+                validator,
+                notification.blockNumbers
+            );
+            if (response != null) {
+                Data.deletePendingBlockNotification(notification);
+            }
+        }
+    }
+}
+
 async function onNewBlock(blockHeader) {
-    logger.info(`⛓  New block #${blockHeader.number} authored by ${blockHeader.author}`);
     if (!blockHeader.author) {
         return;
     }
-    const validator = await Data.getValidatorByStashAddress(blockHeader.author.toString());
+    logger.info(`⛓  New block #${blockHeader.number} authored by ${blockHeader.author}`);
+    const stashAddress = blockHeader.author.toString();
+    const validator = await Data.getValidatorByStashAddress(stashAddress);
     if (validator) {
-        Messaging.sendBlockAuthored(validator, blockHeader.number);
+        processNewBlockByValidator(parseInt(blockHeader.number), validator)
+    }
+}
+
+async function processNewBlockByValidator(blockNumber, validator) {
+    for (let chatId of validator.chatIds) {
+        let chat = await Data.getChatById(chatId);
+        if (chat) {
+            let notificationPeriod = chat.blockNotificationPeriod;
+            if (notificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
+                logger.info(`Chat [${chat.chatId}] block notification period is immediate. Send notification for ${validator.name}.`);
+                clearTimeout(blockAuthoredNotificationDebounce);
+                blockAuthoredNotificationDebounce = setTimeout(() => {
+                    Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
+                }, 500);
+            } else {
+                logger.info(`Chat [${chat.chatId}] block notification period is ${notificationPeriod} mins. Save notification.`);
+                Data.savePendingBlockNotification(
+                    chat,
+                    validator,
+                    blockNumber
+                );
+            }
+        }
     }
 }
 
 async function onEraChange(currentEra) {
     logger.info(`New era ${currentEra}.`);
+    // send all pending block notifications
+    await sendPendingNotifications();
     // get all validators
     const validators = await Data.getAllValidators();
     for(let validator of validators) {
@@ -401,6 +551,7 @@ const start = async () => {
     logger.info(`Start receiving Telegram updates.`);
     getTelegramUpdates();
     start1KVUpdateJob();
+    startPendingNotificationSender();
 }
 
 const stop = async () => {

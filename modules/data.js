@@ -16,7 +16,14 @@ const ChatState = {
     ADD: 'ADD',
     REMOVE: 'REMOVE',
     VALIDATOR_INFO: 'VALIDATOR_INFO'
-}
+};
+
+const BlockNotificationPeriod = {
+    IMMEDIATE: 0,
+    HOURLY: 60,
+    THREE_HOURLY: 180,
+    ERA_END: 360
+};
 
 async function start(onNewBlock, onNewEra) {
     logger.info(`Get MongoDB connection.`);
@@ -77,7 +84,8 @@ async function createChat(chatId) {
     let chatCollection = await MongoDB.getChatCollection();
     chat = {
         chatId: chatId,
-        state: ChatState.IDLE
+        state: ChatState.IDLE,
+        blockNotificationPeriod: BlockNotificationPeriod.IMMEDIATE
     };
     await chatCollection.insertOne(chat);
     return await getChatById(chatId);
@@ -177,7 +185,7 @@ async function updateValidatorChatIds(validator, chatIds) {
 }
 
 async function getValidatorsForChat(chatId) {
-    let validatorCollection = await MongoDB.getValidatorCollection();;
+    let validatorCollection = await MongoDB.getValidatorCollection();
     return await validatorCollection.find({chatIds: {$elemMatch: {$eq: chatId}}}).toArray();
 }
 
@@ -186,8 +194,100 @@ async function getAllValidators() {
     return await validatorCollection.find({}).toArray();
 }
 
+async function savePendingBlockNotification(chat, validator, blockNumber) {
+    const notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    const notification = await notificationCollection.findOne(
+        {
+            chatId: chat.chatId,
+            stashAddress: validator.stashAddress
+        }
+    );
+    var result;
+    if (notification) {
+        const blockNumbers = notification.blockNumbers;
+        if (!blockNumbers.includes(blockNumber)) {
+            blockNumbers.push(blockNumber);
+        }
+        result = await notificationCollection.updateOne(
+            { chatId: notification.chatId, stashAddress: notification.stashAddress },
+            { $set: { blockNumbers: blockNumbers } }
+        );
+    } else {
+        result = await notificationCollection.insertOne(
+            {
+                chatId: chat.chatId,
+                stashAddress: validator.stashAddress,
+                blockNumbers: [blockNumber]
+            }
+        );   
+    }
+    return result.result.ok && result.result.n == 1;
+}
+
+async function getPendingBlockNotifications(notificationPeriod) {
+    let notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    if (notificationPeriod) {
+        const chatCollection = await MongoDB.getChatCollection();
+        const chats = await chatCollection.find({blockNotificationPeriod: notificationPeriod}).toArray();
+        const notifications = [];
+        for (let chat of chats) {
+            let chatNotifications = await notificationCollection.find({chatId: chat.chatId}).toArray();
+            for (let chatNotification of chatNotifications) {
+                notifications.push(chatNotification);
+            }
+        }
+        return notifications;
+    } else {
+        return notificationCollection.find().toArray();
+    }
+}
+
+async function getPendingBlockNotificationsForChat(chatId) {
+    let notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    return await notificationCollection.find({chatId: chatId}).toArray();
+}
+
+async function deletePendingBlockNotification(notification) {
+    let notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    const result = await notificationCollection.deleteOne(
+        {
+            chatId: notification.chatId,
+            stashAddress: notification.stashAddress
+        }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
+async function setChatLastSettingsCommandMessageId(chatId, messageId) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { lastSettingsCommandMessageId: messageId } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
+async function setChatLastSettingsMessageId(chatId, messageId) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { lastSettingsMessageId: messageId } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
+async function setChatBlockNotificationPeriod(chatId, blockNotificationPeriod) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { blockNotificationPeriod: blockNotificationPeriod } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
 module.exports = {
     ChatState: ChatState,
+    BlockNotificationPeriod: BlockNotificationPeriod,
     start: start,
     stop: stop,
     setChatState: setChatState,
@@ -203,5 +303,12 @@ module.exports = {
     getAllValidators: getAllValidators,
     updateValidator: updateValidator,
     getChatById: getChatById,
-    createChat: createChat
-}
+    createChat: createChat,
+    savePendingBlockNotification: savePendingBlockNotification,
+    getPendingBlockNotifications: getPendingBlockNotifications,
+    getPendingBlockNotificationsForChat: getPendingBlockNotificationsForChat,
+    deletePendingBlockNotification: deletePendingBlockNotification,
+    setChatLastSettingsCommandMessageId: setChatLastSettingsCommandMessageId,
+    setChatLastSettingsMessageId: setChatLastSettingsMessageId,
+    setChatBlockNotificationPeriod: setChatBlockNotificationPeriod
+};

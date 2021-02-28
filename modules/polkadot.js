@@ -67,7 +67,7 @@ async function getSessionKeys(address) {
 async function checkEraChange() {
     const currentEra = await getCurrentEra();
     if (currentEra > lastEra) {
-        if (onEraChange) {
+        if (lastEra != 0 && onEraChange) {
             onEraChange(currentEra);
         }
         lastEra = currentEra;
@@ -81,7 +81,7 @@ async function connectPolkadot(onNewBlock, onNewEra) {
     await api.derive.chain.subscribeNewHeads(onNewBlock);
     onEraChange = onNewEra;
     await checkEraChange();
-    cron.schedule('*/20 * * * *', () => {
+    cron.schedule('10,30,50 * * * *', () => {
         checkEraChange();
     });
 }

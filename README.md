@@ -33,6 +33,7 @@ One may add multiple validators to the chat and the bot will notify the user whe
 - `/add` to start the process of adding a validator to the chat
 - `/remove` to start the process of removing a validator from the chat
 - `/validatorinfo` to get details of any of the added validators
+- `/settings` to configure the bot (only block notification frequency for the moment)
 
 Don't forget to turn on push notifications for Telegram to receive alerts about your validator.
 

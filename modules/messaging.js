@@ -6,9 +6,45 @@ const dedent = require('dedent');
 const moment = require('moment');
 const logger = require('./logging');
 const markdownEscape = require('markdown-escape');
+const { BlockNotificationPeriod } = require('./data');
 require('dotenv').config();
 
 const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
+
+async function updateMessage(chatId, messageId, message, replyMarkup) {
+    let body = {
+        chat_id: chatId,
+        message_id: messageId,
+        text: message,
+        parse_mode: 'Markdown',
+        disable_web_page_preview: true
+    };
+    if (replyMarkup) {
+        body.reply_markup = replyMarkup;
+    } else {
+        body.reply_markup = { remove_keyboard: true }
+    }
+    const response = await fetch(
+        telegramBaseURL + '/editMessageText',
+        {
+            method: 'post',
+            body:    JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' }
+        }
+    );
+    const successful = response.status % 200 < 100;
+    if (successful) {
+        logger.info(`Message "${messageId}" updated in chat ${chatId} successfully.`);
+        try {
+            return (await response.json()).result;
+        } catch (error) {
+            return null
+        }
+    } else {
+        logger.error(`Error while updating message ${messageId} in chat ${chatId}.`);
+        return null;
+    }
+}
 
 async function sendMessage(chatId, message, replyMarkup) {
     let body = {
@@ -33,9 +69,39 @@ async function sendMessage(chatId, message, replyMarkup) {
     const successful = response.status % 200 < 100;
     if (successful) {
         logger.info(`Message "${message}" sent to chat ${chatId} successfully.`);
+        try {
+            return (await response.json()).result;
+        } catch (error) {
+            return null
+        }
     } else {
         logger.error(`Error while sending message "${message}" sent to chat ${chatId}.`);
+        return null;
     }
+}
+
+async function answerCallbackQuery(callbackQueryId, message) {
+    let body = {
+        callback_query_id: callbackQueryId
+    };
+    if (message) {
+        body.text = message;
+    }
+    const response = await fetch(
+        telegramBaseURL + '/answerCallbackQuery',
+        {
+            method: 'post',
+            body:    JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' }
+        }
+    );
+    const successful = response.status % 200 < 100;
+    if (successful) {
+        logger.info(`Callback query ${callbackQueryId} answered.`);
+    } else {
+        logger.error(`Error while answering callback query ${callbackQueryId}.`);
+    }
+    return successful;
 }
 
 async function sendValidatorNotFound(chatId, stashAddress) {
@@ -59,8 +125,25 @@ async function sendUnexpectedError(chatId) {
     await sendMessage(chatId, message);
 }
 
-async function sendValidatorInfo(chatId, validator) {
+async function sendSettings(chat, messageId) {
+    const keyboard = [
+        [{ text: 'Block Authorship Notification Period', callback_data: 'no_op'}],
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.THREE_HOURLY ? '🟢' : '⚪️') + ' Every 3 hours', callback_data: '{"blockNotificationPeriod": 180}'}],
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ' End of every era (6 hours)', callback_data: '{"blockNotificationPeriod": 360}'}]
+    ]
+    const replyMarkup = {
+        inline_keyboard: keyboard
+    };
+    if (messageId) {
+        return await updateMessage(chat.chatId, messageId, 'Please configure below.', replyMarkup);
+    } else {
+        return await sendMessage(chat.chatId, 'Please configure below.', replyMarkup);
+    }
+}
 
+async function sendValidatorInfo(chatId, validator) {
     // name
     let validatorInfo = markdownEscape(validator.name);
     
@@ -140,12 +223,19 @@ async function sendUnrecognizedCommand(chatId) {
     await sendMessage(chatId, message);
 }
 
-async function sendBlockAuthored(validator, blockNumber) {
-    const message = `${validator.name} has just authored block ${blockNumber} 🎉.`
-        + `\nYou can view the block details [here](https://polkascan.io/kusama/block/${blockNumber}).`;
-    for (let chatId of validator.chatIds) {
-        await sendMessage(chatId, message);
+async function sendBlocksAuthored(chatId, validator, blockNumbers) {
+    let message;
+    if (blockNumbers == 0) { 
+        return; 
+    } else if (blockNumbers.length == 1) {
+        message = `${validator.name} has authored block ` 
+            + `[${blockNumbers[0]}](https://polkascan.io/kusama/block/${blockNumbers[0]}). 🎉`;
+    } else {
+        message = `${validator.name} has authored blocks `
+            + blockNumbers.map(blockNumber => `[${blockNumber}](https://polkascan.io/kusama/block/${blockNumber})`).join(', ')
+            + '. 🎉';
     }
+    return await sendMessage(chatId, message);
 }
 
 async function sendInvalidStashAddress(chatId) {
@@ -190,6 +280,7 @@ async function sendHelp(chatId) {
         /add - add a new validator
         /remove - remove an existing validator
         /validatorinfo - get information about one of the added validators
+        /settings - configure the bot (only block authorship notification frequency for the moment)
         /help - display this message`
     );
     await sendMessage(chatId, message);
@@ -207,6 +298,28 @@ async function sendChatHasMaxValidators(chatId, maxValidatorsPerChat) {
     await sendMessage(chatId, message);
 }
 
+async function deleteMessage(chatId, messageId) {
+    let body = {
+        chat_id: chatId,
+        message_id: messageId
+    };
+    const response = await fetch(
+        telegramBaseURL + '/deleteMessage',
+        {
+            method: 'post',
+            body:    JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' }
+        }
+    );
+    const successful = response.status % 200 < 100;
+    if (successful) {
+        logger.info(`Message ${messageId} deleted.`);
+    } else {
+        logger.error(`Error while deleting message ${messageId}.`);
+    }
+    return successful;
+}
+
 module.exports = {
     sendMessage: sendMessage,
     sendValidatorNotFound: sendValidatorNotFound,
@@ -216,7 +329,7 @@ module.exports = {
     sendValidatorNotFoundByName: sendValidatorNotFoundByName,
     sendValidatorRemoved: sendValidatorRemoved,
     sendUnrecognizedCommand: sendUnrecognizedCommand,
-    sendBlockAuthored: sendBlockAuthored,
+    sendBlocksAuthored: sendBlocksAuthored,
     sendInvalidStashAddress: sendInvalidStashAddress,
     sendValidatorAlreadyAdded: sendValidatorAlreadyAdded,
     sendValidatorFetchInProgress: sendValidatorFetchInProgress,
@@ -225,5 +338,8 @@ module.exports = {
     sendValidatorSelection: sendValidatorSelection,
     sendHelp: sendHelp,
     sendClaimPaymentWarning: sendClaimPaymentWarning,
-    sendChatHasMaxValidators: sendChatHasMaxValidators
+    sendChatHasMaxValidators: sendChatHasMaxValidators,
+    sendSettings: sendSettings,
+    answerCallbackQuery: answerCallbackQuery,
+    deleteMessage: deleteMessage
 };
