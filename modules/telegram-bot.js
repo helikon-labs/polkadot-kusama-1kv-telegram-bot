@@ -14,7 +14,6 @@ require('dotenv').config();
 
 const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
 const maxValidatorsPerChat = 20;
-var blockAuthoredNotificationDebounce;
 
 async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
     try {
@@ -509,10 +508,7 @@ async function processNewBlockByValidator(blockNumber, validator) {
             let notificationPeriod = chat.blockNotificationPeriod;
             if (notificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
                 logger.info(`Chat [${chat.chatId}] block notification period is immediate. Send notification for ${validator.name}.`);
-                clearTimeout(blockAuthoredNotificationDebounce);
-                blockAuthoredNotificationDebounce = setTimeout(() => {
-                    Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
-                }, 500);
+                Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
             } else {
                 logger.info(`Chat [${chat.chatId}] block notification period is ${notificationPeriod} mins. Save notification.`);
                 Data.savePendingBlockNotification(
