@@ -93,7 +93,13 @@ async function createChat(chatId) {
 
 async function fetchValidator(stashAddress) {
     logger.info(`Will fetch validator info for ${stashAddress}.`);
-    const response = await fetch(w3fValidatorInfoBaseURL + '/' + stashAddress);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(
+        w3fValidatorInfoBaseURL + '/' + stashAddress,
+        { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
     if (response.status == 200) {
         const w3fValidator = await response.json();
         w3fValidator.isActiveInSet = await Polkadot.getIsActiveInSet(stashAddress);

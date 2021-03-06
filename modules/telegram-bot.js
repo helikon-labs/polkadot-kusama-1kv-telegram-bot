@@ -404,6 +404,7 @@ async function updateValidator(validator) {
         // compare updated
         if (validator.updated != w3fValidator.updated) {
             updates.updated = w3fValidator.updated;
+            updates.version = w3fValidator.version;
             if (w3fValidator.updated) {
                 message += '\n' + '🆙 is now up-to-date with version `' + validator.version + '`';
             } else {
