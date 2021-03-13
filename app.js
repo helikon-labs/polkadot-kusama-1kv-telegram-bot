@@ -1,3 +1,9 @@
+const Config = require('./modules/config');
+// configure the app
+if (!Config.configure()) {
+    process.exit(1);
+}
+
 const TelegramBot = require('./modules/telegram-bot');
 
 const cleanup = async (_) => {

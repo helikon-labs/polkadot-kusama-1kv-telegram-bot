@@ -10,9 +10,9 @@ const Polkadot = require('./polkadot');
 const Data = require('./data');
 const Messaging = require('./messaging');
 const logger = require('./logging');
-require('dotenv').config();
+const config = require('./config').config;
 
-const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
+const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const maxValidatorsPerChat = 20;
 
 async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
@@ -77,7 +77,7 @@ async function processCallbackQuery(query) {
     if (typeof blockNotificationPeriod !== 'undefined') {
         if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE
             || blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY
-            || blockNotificationPeriod == Data.BlockNotificationPeriod.THREE_HOURLY
+            || blockNotificationPeriod == Data.BlockNotificationPeriod.HALF_ERA
             || blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END) {
             // set chat's block notification period
             const successful = await Data.setChatBlockNotificationPeriod(chatId, blockNotificationPeriod);
@@ -355,12 +355,20 @@ async function updateValidator(validator) {
             updateCount++;
         } else if ((!validator.invalidityReasons || validator.invalidityReasons.trim().length == 0)
             && w3fValidator.invalidityReasons && w3fValidator.invalidityReasons.length > 0 ) {
+            // send pending messages
+            for (let chatId of validator.chatIds) {
+                sendPendingNotificationsForChat(chatId);
+            }
             updates.invalidityReasons = w3fValidator.invalidityReasons;
             message += '\n' + '❌ has become an invalid 1KV validator: ' + w3fValidator.invalidityReasons;
             updateCount++;
         }
         // compare online/offline
         if (validator.onlineSince != 0 && w3fValidator.onlineSince == 0) {
+            // send pending messages
+            for (let chatId of validator.chatIds) {
+                sendPendingNotificationsForChat(chatId);
+            }
             updates.onlineSince = w3fValidator.onlineSince;
             updates.offlineSince = w3fValidator.offlineSince;
             updates.offlineAccumulated = w3fValidator.offlineAccumulated;
@@ -380,6 +388,10 @@ async function updateValidator(validator) {
             if (w3fValidator.isActiveInSet) {
                 message += '\n' + '🚀 is now *in* the active validator set';
             } else {
+                // send pending messages
+                for (let chatId of validator.chatIds) {
+                    sendPendingNotificationsForChat(chatId);
+                }
                 message += '\n' + '⏸ is *not* anymore in the active validator set';
             }
             updateCount++;
@@ -387,7 +399,7 @@ async function updateValidator(validator) {
         // compare session keys
         if (validator.sessionKeys != w3fValidator.sessionKeys) {
             updates.sessionKeys = w3fValidator.sessionKeys;
-            message += '\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 12) + '..' + w3fValidator.sessionKeys.slice(-12) + '`';
+            message += '\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 8) + '..' + w3fValidator.sessionKeys.slice(-8) + '`';
             updateCount++;
         }
         // compare nominated
@@ -451,8 +463,9 @@ function startPendingNotificationSender() {
     cron.schedule('0 * * * *', () => {
         sendPendingNotifications(Data.BlockNotificationPeriod.HOURLY);
     });
-    cron.schedule('0 */3 * * *', () => {
-        sendPendingNotifications(Data.BlockNotificationPeriod.THREE_HOURLY);
+    const halfEraHours = config.eraLengthMins / (2 * 60);
+    cron.schedule(`0 */${halfEraHours} * * *`, () => {
+        sendPendingNotifications(Data.BlockNotificationPeriod.HALF_ERA);
     });
 }
 
@@ -540,7 +553,7 @@ async function onEraChange(currentEra) {
 }
 
 const start = async () => {
-    logger.info(`Kusama 1KV Telegram bot has started.`);
+    logger.info(`1KV Telegram bot has started.`);
     await Data.start(
         onNewBlock,
         onEraChange

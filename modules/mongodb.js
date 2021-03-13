@@ -2,11 +2,11 @@
  * MongoDB bottom data access layer.
  */
 const MongoClient = require('mongodb').MongoClient;
-require('dotenv').config();
+const config = require('./config').config;
 
 const mongoConfig = {
-    url: process.env.MONGODB_CONNECTION_URL,
-    db: 'kusama_1kv_telegram_bot',
+    url: config.mongoDBConnectionURL,
+    db: config.dbName,
     telegramConfigCollection: 'telegram_config',
     validatorCollection: 'validators',
     chatCollection: 'chats',

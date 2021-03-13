@@ -4,12 +4,13 @@
 const fetch = require('node-fetch');
 const dedent = require('dedent');
 const moment = require('moment');
-const logger = require('./logging');
 const markdownEscape = require('markdown-escape');
-const { BlockNotificationPeriod } = require('./data');
-require('dotenv').config();
 
-const telegramBaseURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_AUTH_KEY}`;
+const logger = require('./logging');
+const config = require('./config').config;
+const { BlockNotificationPeriod } = require('./data');
+
+const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 
 async function updateMessage(chatId, messageId, message, replyMarkup) {
     let body = {
@@ -106,7 +107,7 @@ async function answerCallbackQuery(callbackQueryId, message) {
 
 async function sendValidatorNotFound(chatId, stashAddress) {
     const message = dedent('⚠️ Validator with stash address `' + stashAddress 
-                    + '` was not found in the Kusama Thousand Validators Programme.'
+                    + `\` was not found in the ${config.networkName} Thousand Validators Programme.`
                     + ' Please enter a different stash address.');
     await sendMessage(chatId, message);
 }
@@ -114,9 +115,10 @@ async function sendValidatorNotFound(chatId, stashAddress) {
 async function sendValidatorAdded(chatId, validator) {
     const message = `${validator.name} has been added to your list.` 
                 + ` You will receive updates regarding the status of your validator and its activity`
-                + ` on the Kusama blockchain. You may use the /remove command to remove this validator`
-                + ` or any other from your list and stop receiving notifications.`
-                + ` You may also add more validators with the /add command.`;
+                + ` on the ${config.networkName} blockchain. I will send you block authorship notifications at the end of every hour,`
+                + ` you can change this period with the /settings command. Please use the /remove command to remove this validator`
+                + ` or any other in your list and stop receiving notifications.`
+                + ` You can also add more validators with the /add command.`;
     await sendMessage(chatId, message);
 }
 
@@ -130,8 +132,8 @@ async function sendSettings(chat, messageId) {
         [{ text: 'Block Authorship Notification Period', callback_data: 'no_op'}],
         [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
         [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.THREE_HOURLY ? '🟢' : '⚪️') + ' Every 3 hours', callback_data: '{"blockNotificationPeriod": 180}'}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ' End of every era (6 hours)', callback_data: '{"blockNotificationPeriod": 360}'}]
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.HALF_ERA ? '🟢' : '⚪️') + ` End of every half era (${config.eraLengthMins / (2 * 60)} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins / 2}}`}],
+        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}]
     ]
     const replyMarkup = {
         inline_keyboard: keyboard
@@ -148,7 +150,7 @@ async function sendValidatorInfo(chatId, validator) {
     let validatorInfo = markdownEscape(validator.name);
     
     // stash
-    validatorInfo += `\n📍 Address ${validator.stashAddress.slice(0, 16)}..${validator.stashAddress.slice(-16)}`;
+    validatorInfo += `\n📍 Address ${validator.stashAddress.slice(0, 8)}..${validator.stashAddress.slice(-8)}`;
 
     // rank
     validatorInfo += `\n📊 Has rank ${validator.rank}`;
@@ -175,7 +177,7 @@ async function sendValidatorInfo(chatId, validator) {
     }
     // session keys
     if (validator.sessionKeys) {
-        const sessionKeys = validator.sessionKeys.slice(0, 12) + '..' + validator.sessionKeys.slice(-12);
+        const sessionKeys = validator.sessionKeys.slice(0, 8) + '..' + validator.sessionKeys.slice(-8);
         validatorInfo += `\n🔑 Session keys: ${sessionKeys}`;
         // return 
     }
@@ -229,17 +231,17 @@ async function sendBlocksAuthored(chatId, validator, blockNumbers) {
         return; 
     } else if (blockNumbers.length == 1) {
         message = `${validator.name} has authored block ` 
-            + `[${blockNumbers[0]}](https://polkascan.io/kusama/block/${blockNumbers[0]}). 🎉`;
+            + `[${blockNumbers[0]}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumbers[0]}). 🎉`;
     } else {
         message = `${validator.name} has authored blocks `
-            + blockNumbers.map(blockNumber => `[${blockNumber}](https://polkascan.io/kusama/block/${blockNumber})`).join(', ')
+            + blockNumbers.map(blockNumber => `[${blockNumber}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumber})`).join(', ')
             + '. 🎉';
     }
     return await sendMessage(chatId, message);
 }
 
 async function sendInvalidStashAddress(chatId) {
-    const message = `Sorry, that doesn't look like a valid Kusama address. Please try again.`;
+    const message = `Sorry, that doesn't look like a valid ${config.networkName} address. Please try again.`;
     await sendMessage(chatId, message);
 }
 
@@ -259,7 +261,11 @@ async function sendNoValidators(chatId) {
 }
 
 async function sendAddValidator(chatId) {
-    const message = `Let's add your validator. Please enter your stash address (e.g. \`F9VqNhAYxAnSh7cUpdVpFp5eKNHGL44AiBdH3FKbbjHFYCd\`).`;
+    let exampleAddress = '1FRMM8PEiWXYax7rpS6X4XZX1aAAxSWx1CrKTyrVYhV24fg';
+    if (config.networkName == 'Kusama') {
+        exampleAddress = 'F9VqNhAYxAnSh7cUpdVpFp5eKNHGL44AiBdH3FKbbjHFYCd';
+    }
+    const message = `Let's add your validator. Please enter your stash address (e.g. \`${exampleAddress}\`).`;
     await sendMessage(chatId, message);
 }
 
@@ -275,7 +281,7 @@ async function sendValidatorSelection(validators, chatId, message) {
 
 async function sendHelp(chatId) {
     const message = dedent(
-        `Here's a list of commands to help you receive notifications about your validator node in the [Kusama Thousand Validators Programme](https://polkadot.network/join-kusamas-thousand-validators-programme/).
+        `Here's a list of commands to help you receive notifications about your validator node in the [${config.networkName} Thousand Validators Programme](${config.network1KVInfoURL}).
         
         /add - add a new validator
         /remove - remove an existing validator

@@ -1,13 +1,13 @@
 /**
- * Polkadot RPC access module.
+ * Polkadot/Kusama RPC access module.
  * Adopted mostly from the Kusama 1KV leaderboard site.
  */
 const{ ApiPromise, WsProvider } = require('@polkadot/api');
 const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
 const { hexToU8a, isHex } = require('@polkadot/util');
 const cron = require('node-cron');
-require('dotenv').config({path:'../.env'});
 const logger = require('./logging');
+const config = require('./config').config;
 
 let api;
 let lastEra = 0;
@@ -20,6 +20,15 @@ const isValidAddress = (address) => {
                 ? hexToU8a(address)
                 : decodeAddress(address)
         );
+        if (config.networkName == 'Polkadot') {
+            if (address.charAt(0) != '1') {
+                return false;
+            }
+        } else if (config.networkName == 'Kusama') {
+            if ('ABCDEFGHJKLMNPQRSTUVWXYZ'.indexOf(address.charAt(0)) < 0) {
+                return false;
+            }
+        }
         return true;
     } catch (error) {
         return false;
@@ -75,7 +84,7 @@ async function checkEraChange() {
 }
 
 async function connectPolkadot(onNewBlock, onNewEra) {
-    const wsProvider = new WsProvider(process.env.POLKADOT_RPC_URL);
+    const wsProvider = new WsProvider(config.rpcURL);
     api = new ApiPromise({ provider: wsProvider });
     await api.isReady;
     await api.derive.chain.subscribeNewHeads(onNewBlock);
@@ -88,7 +97,7 @@ async function connectPolkadot(onNewBlock, onNewEra) {
 
 const disconnectPolkadot = async () => {
     if (api) {
-        logger.info('Close Polkadot API connection.');
+        logger.info(`Close ${config.networkName} API connection.`);
         await api.disconnect();
     }
 };

@@ -3,13 +3,12 @@
  */
 const fetch = require('node-fetch');
 const logger = require('./logging');
+const config = require('./config').config;
 
 const MongoDB = require('./mongodb');
 const Polkadot = require('./polkadot');
 
 let telegramConfig;
-
-const w3fValidatorInfoBaseURL = 'https://kusama.w3f.community/candidate';
 
 const ChatState = {
     IDLE: 'IDLE',
@@ -21,14 +20,14 @@ const ChatState = {
 const BlockNotificationPeriod = {
     IMMEDIATE: 0,
     HOURLY: 60,
-    THREE_HOURLY: 180,
-    ERA_END: 360
+    HALF_ERA: config.eraLengthMins / 2,
+    ERA_END: config.eraLengthMins
 };
 
 async function start(onNewBlock, onNewEra) {
     logger.info(`Get MongoDB connection.`);
     await MongoDB.connectMongoDB();
-    logger.info(`Get Polkadot API connection.`);
+    logger.info(`Get ${config.networkName} RPC connection.`);
     await Polkadot.connectPolkadot(onNewBlock, onNewEra);
     telegramConfig = await initTelegram();
 }
@@ -36,7 +35,7 @@ async function start(onNewBlock, onNewEra) {
 async function stop() {
     logger.info(`Close MongoDB connection.`);
     await MongoDB.disconnectMongoDB();
-    logger.info(`Close Polkadot connection.`);
+    logger.info(`Close ${config.networkName} RPC connection.`);
     await Polkadot.disconnectPolkadot();
 }
 
@@ -94,9 +93,9 @@ async function createChat(chatId) {
 async function fetchValidator(stashAddress) {
     logger.info(`Will fetch validator info for ${stashAddress}.`);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(
-        w3fValidatorInfoBaseURL + '/' + stashAddress,
+        config.w3fBaseURL + '/candidate/' + stashAddress,
         { signal: controller.signal }
     );
     clearTimeout(timeoutId);
@@ -127,6 +126,7 @@ async function persistValidator(w3fValidator, chatId) {
     const validator = {
         name: w3fValidator.name,
         stashAddress: w3fValidator.stash,
+        kusamaStashAddress: w3fValidator.kusamaStash,
         rank: w3fValidator.rank,
         discoveredAt: w3fValidator.discoveredAt,
         nominatedAt: w3fValidator.nominatedAt,
