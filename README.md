@@ -11,10 +11,9 @@ One may add multiple validators to the chat and the bot will notify the user whe
 - 🔴 goes offline or 🟢 comes back online
 - 📈 gains or 📉 loses rank
 - 🚀 enters or ⏸ leaves the active validator set
-- 🤘 gets nominated or 👎 loses nominations
 - 🔑 updates session keys 
 - ⛓ produces a block
-- 💰 has unclaimed rewards at the end of an era
+- 💰 has unclaimed rewards for the past era or in the last 4 days
 - ❗ becomes out of date or gets 🆙 to date
 - ✅ is valid for 1KV or ❌ becomes invalid
 - and more...
@@ -29,11 +28,13 @@ One may add multiple validators to the chat and the bot will notify the user whe
 
 #### Available bot commands:
 
-- `/help` to display all commands
-- `/add` to start the process of adding a validator to the chat
-- `/remove` to start the process of removing a validator from the chat
-- `/validatorinfo` to get details of any of the added validators
-- `/settings` to configure the bot (only block notification frequency for the moment)
+- `/about` display version and developer info
+- `/help` display all commands
+- `/add` start the process of adding a validator to the chat
+- `/remove` start the process of removing a validator from the chat
+- `/validatorinfo` get details of any of the added validators
+- `/stakinginfo` display self, active and inactive stake amounts for a validator
+- `/settings` configure the bot (only block notification frequency for the moment)
 
 Don't forget to turn on push notifications for Telegram to receive alerts about your validator.
 

@@ -71,11 +71,12 @@ async function processCallbackQuery(query) {
         Messaging.answerCallbackQuery(queryId, 'Invalid query.');
         return;
     } else {
-        logger.info('Callback query coming from the last settings message:)');
+        logger.info('Callback query coming from the last settings message.');
     }
     const blockNotificationPeriod = data.blockNotificationPeriod;
     if (typeof blockNotificationPeriod !== 'undefined') {
-        if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE
+        if (blockNotificationPeriod == Data.BlockNotificationPeriod.OFF
+            || blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE
             || blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY
             || blockNotificationPeriod == Data.BlockNotificationPeriod.HALF_ERA
             || blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END) {
@@ -90,6 +91,9 @@ async function processCallbackQuery(query) {
                 // send pending notifications
                 if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
                     sendPendingNotificationsForChat(chatId);
+                } else if (blockNotificationPeriod == Data.BlockNotificationPeriod.OFF) {
+                    logger.info(`Block notifications turned off for chat ${chatId}.`);
+                    Data.deletePendingBlockNotificationsForChat(chatId);
                 }
             } else {
                 Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
@@ -97,7 +101,6 @@ async function processCallbackQuery(query) {
         } else {
             logger.info(`Invalid block notification period ${blockNotificationPeriod}. Ignore.`);
             Messaging.answerCallbackQuery(queryId, 'Invalid data.');
-            return;
         }
     }
 }
@@ -141,6 +144,11 @@ async function processTelegramUpdate(update) {
         logger.info(`${text} received.`);
         Data.setChatState(chatId, Data.ChatState.IDLE);
         Messaging.sendHelp(chatId);
+        return;
+    } else if (text == `/about`) {
+        logger.info(`${text} received.`);
+        Messaging.sendAbout(chatId);
+        Data.setChatState(chatId, Data.ChatState.IDLE);
         return;
     } else if (text.startsWith(`/add`)) {
         const tokens = text.split(/\s+/);
@@ -204,6 +212,31 @@ async function processTelegramUpdate(update) {
             Data.setChatLastSettingsMessageId(chat.chatId, message.message_id);
         }
         Data.setChatState(chatId, Data.ChatState.IDLE);
+    } else if (text == `/stakinginfo`) {
+        logger.info(`/stakinginfo received.`);
+        const validators = await Data.getValidatorsForChat(chatId);
+        if (validators.length < 1) {
+            Messaging.sendNoValidators(chatId);
+        } else if (validators.length == 1) {
+            Messaging.sendLoadingStakingInfo(chatId);
+            if (chat.state != Data.ChatState.STAKING_INFO_LOADING) {
+                Data.setChatState(chatId, Data.ChatState.STAKING_INFO_LOADING);
+                const stakingInfo = await Data.getStakingInfo(validators[0].stashAddress);
+                Messaging.sendStakingInfo(chatId, stakingInfo);
+                Data.setChatState(chatId, Data.ChatState.IDLE);
+            }
+        } else {
+            if (chat.state == Data.ChatState.STAKING_INFO_LOADING) {
+                Messaging.sendLoadingStakingInfo(chatId);
+            } else {
+                await sendValidatorList(
+                    chatId,
+                    validators,
+                    'Sure, staking info for which validator? Please select from below.',
+                    Data.ChatState.STAKING_INFO_SELECT_VALIDATOR
+                );
+            }
+        }
     } else {
         logger.info(`Received message [${text}] on state [${chat.state}].`);
         switch (chat.state) {
@@ -235,6 +268,18 @@ async function processTelegramUpdate(update) {
                     await Messaging.sendValidatorNotFoundByName(chatId, text);
                 } else {
                     await Messaging.sendValidatorInfo(chatId, infoValidator);
+                }
+                Data.setChatState(chatId, Data.ChatState.IDLE);
+                break;
+            case Data.ChatState.STAKING_INFO_SELECT_VALIDATOR:
+                const stakeInfoValidator = await Data.getValidatorByName(text);
+                if (!stakeInfoValidator) {
+                    await Messaging.sendValidatorNotFoundByName(chatId, text);
+                } else {
+                    await Messaging.sendLoadingStakingInfo(chatId);
+                    Data.setChatState(chatId, Data.ChatState.STAKING_INFO_LOADING);
+                    const stakingInfo = await Data.getStakingInfo(stakeInfoValidator.stashAddress);
+                    Messaging.sendStakingInfo(chatId, stakingInfo);
                 }
                 Data.setChatState(chatId, Data.ChatState.IDLE);
                 break;
@@ -389,7 +434,11 @@ async function updateValidator(validator) {
         if (validator.isActiveInSet != w3fValidator.isActiveInSet) {
             updates.isActiveInSet = w3fValidator.isActiveInSet;
             if (w3fValidator.isActiveInSet) {
+                const totalActiveStakeAmount = 
+                    (await Data.getActiveStakeInfoForCurrentEra(validator.stashAddress)).totalStake;
                 message += '\n' + '🚀 is now *in* the active validator set';
+                message += '\n' + `Total active stake *${Messaging.formatAmount(totalActiveStakeAmount)}*`;
+                // fetch active stake
             } else {
                 // send pending messages
                 for (let chatId of validator.chatIds) {
@@ -403,17 +452,6 @@ async function updateValidator(validator) {
         if (validator.sessionKeys != w3fValidator.sessionKeys) {
             updates.sessionKeys = w3fValidator.sessionKeys;
             message += '\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 8) + '..' + w3fValidator.sessionKeys.slice(-8) + '`';
-            updateCount++;
-        }
-        // compare nominated
-        if (validator.nominatedAt != w3fValidator.nominatedAt) {
-            updates.nominatedAt = w3fValidator.nominatedAt;
-            if (!w3fValidator.nominatedAt || w3fValidator.nominatedAt == 0) {
-                message += '\n' + '👎 is not nominated anymore';
-            } else {
-                const nominatedAt = moment.utc(new Date(validator.nominatedAt)).format('MMMM Do YYYY, HH:mm:ss');
-                message += '\n' + '🤘 got nominated on ' + nominatedAt + ' UTC';
-            }
             updateCount++;
         }
         // compare updated
@@ -506,15 +544,11 @@ async function sendPendingNotificationsForChat(chatId) {
     }
 }
 
-async function onNewBlock(blockHeader) {
-    if (!blockHeader.author) {
-        return;
-    }
-    logger.info(`⛓  New block #${blockHeader.number} authored by ${blockHeader.author}`);
-    const stashAddress = blockHeader.author.toString();
-    const validator = await Data.getValidatorByStashAddress(stashAddress);
+async function onFinalizedBlock(blockNumber, blockHash, blockAuthor) {
+    logger.info(`⛓  Finalized block #${blockNumber} authored by ${blockAuthor}`);
+    const validator = await Data.getValidatorByStashAddress(blockAuthor);
     if (validator) {
-        processNewBlockByValidator(parseInt(blockHeader.number), validator)
+        processNewBlockByValidator(blockNumber, validator)
     }
 }
 
@@ -526,7 +560,7 @@ async function processNewBlockByValidator(blockNumber, validator) {
             if (notificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
                 logger.info(`Chat [${chat.chatId}] block notification period is immediate. Send notification for ${validator.name}.`);
                 Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
-            } else {
+            } else if (notificationPeriod != Data.BlockNotificationPeriod.OFF) {
                 logger.info(`Chat [${chat.chatId}] block notification period is ${notificationPeriod} mins. Save notification.`);
                 Data.savePendingBlockNotification(
                     chat,
@@ -538,29 +572,54 @@ async function processNewBlockByValidator(blockNumber, validator) {
     }
 }
 
+async function checkUnclaimedEraPayouts(currentEra) {
+    const fourDaysMins = 4 * 24 * 60;
+    const unclaimedPayoutsEraDepth = fourDaysMins / config.eraLengthMins;
+    const beginEra = currentEra - unclaimedPayoutsEraDepth;
+    const validators = await Data.getAllValidators();
+    for(let validator of validators) {
+        let unclaimedEras = [];
+        for (let era = beginEra; era < currentEra; era++) {
+            let payoutClaimed = await Polkadot.payoutClaimedForAddressForEra(
+                validator.stashAddress,
+                era
+            );
+            if (!payoutClaimed) {
+                unclaimedEras.push(era);
+            }    
+        }
+        if (unclaimedEras.length > 0) {
+            await Messaging.sendUnclaimedPayoutWarning(validator, unclaimedEras);
+        }
+    }
+}
+
 async function onEraChange(currentEra) {
     logger.info(`New era ${currentEra}.`);
     // send all pending block notifications
     await sendPendingNotifications();
-    // get all validators
-    const validators = await Data.getAllValidators();
-    for(let validator of validators) {
-        const payoutClaimed = await Polkadot.payoutClaimedForAddressForEra(
-            validator.stashAddress,
-            currentEra - 1
-        );
-        if (!payoutClaimed) {
-            await Messaging.sendClaimPaymentWarning(validator, currentEra - 1);
-        }
-    }
+    // delay the unclaimed payout check for an hour
+    const unclaimedPayoutCheckDelayMs = 60 * 60 * 1000;
+    setTimeout(() => {
+        checkUnclaimedEraPayouts(currentEra);
+    }, unclaimedPayoutCheckDelayMs);
 }
 
 const start = async () => {
     logger.info(`1KV Telegram bot has started.`);
     await Data.start(
-        onNewBlock,
+        onFinalizedBlock,
         onEraChange
     );
+    // send release notes
+    const allChats = await Data.getAllChats();
+    for (let chat of allChats) {
+        if (!chat.version || chat.version != config.version) {
+            Messaging.sendReleaseNotes(chat.chatId);
+            Data.setChatVersion(chat.chatId, config.version);
+        }
+    }
+
     logger.info(`Start receiving Telegram updates.`);
     getTelegramUpdates();
     start1KVUpdateJob();

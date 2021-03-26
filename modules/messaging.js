@@ -8,9 +8,22 @@ const markdownEscape = require('markdown-escape');
 
 const logger = require('./logging');
 const config = require('./config').config;
-const { BlockNotificationPeriod } = require('./data');
+const Data = require('./data');
 
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
+
+const releaseNotes =
+`- Turn off block notifications in /settings.
+- Block notifications will be sent/scheduled only when the blocks get finalized.
+- New /stakinginfo command to view the self, active and inactive stake amounts for a validator.
+- Checks unclaimed payouts four days back.
+- Unclaimed payouts check is delayed for an hour after an era change to avoid confusion and to take automatic payout scripts into account.
+- New /about command gives version and developer info.
+- Active stake amount is now included in the notification for when a validator gets in the active validator set.`;
+
+const formatAmount = amount => {
+    return `${amount.toFixed(4)} ${config.tokenTicker}`
+}
 
 async function updateMessage(chatId, messageId, message, replyMarkup) {
     let body = {
@@ -35,7 +48,7 @@ async function updateMessage(chatId, messageId, message, replyMarkup) {
     );
     const successful = response.status % 200 < 100;
     if (successful) {
-        logger.info(`Message "${messageId}" updated in chat ${chatId} successfully.`);
+        logger.info(`Message ${messageId} updated in chat ${chatId} successfully.`);
         try {
             return (await response.json()).result;
         } catch (error) {
@@ -69,15 +82,44 @@ async function sendMessage(chatId, message, replyMarkup) {
     );
     const successful = response.status % 200 < 100;
     if (successful) {
-        logger.info(`Message "${message}" sent to chat ${chatId} successfully.`);
         try {
-            return (await response.json()).result;
+            const responseJSON = await response.json();
+            if (!responseJSON.ok && responseJSON.error_code == 403) {
+                logger.info(`Bot blocked by user. Delete chat ${chatId}.`);
+                await Data.deleteChat(chatId);
+                return;
+            }
+            logger.info(`Message "${message}" sent to chat ${chatId} successfully.`);
+            return responseJSON.result;
         } catch (error) {
-            return null
+            return null;
         }
     } else {
-        logger.error(`Error while sending message "${message}" sent to chat ${chatId}.`);
+        logger.error(`Error while sending message "${message}" to chat ${chatId}.`);
         return null;
+    }
+}
+
+async function sendTypingAction(chatId) {
+    let body = {
+        chat_id: chatId,
+        action: 'typing'
+    };
+    const response = await fetch(
+        telegramBaseURL + '/sendChatAction',
+        {
+            method: 'post',
+            body:    JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' }
+        }
+    );
+    const successful = response.status % 200 < 100;
+    if (successful) {
+        logger.info(`Typing action sent to chat ${chatId} successfully.`);
+        return true;
+    } else {
+        logger.error(`Error while sending typing action to chat ${chatId}.`);
+        return false;
     }
 }
 
@@ -129,11 +171,12 @@ async function sendUnexpectedError(chatId) {
 
 async function sendSettings(chat, messageId) {
     const keyboard = [
-        [{ text: 'Block Authorship Notification Period', callback_data: 'no_op'}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.HALF_ERA ? '🟢' : '⚪️') + ` End of every half era (${config.eraLengthMins / (2 * 60)} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins / 2}}`}],
-        [{ text: (chat.blockNotificationPeriod == BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}]
+        [{ text: '🧱 Block Authorship Notifications 🧱'.toUpperCase(), callback_data: 'no_op'}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"blockNotificationPeriod": -1}'}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HALF_ERA ? '🟢' : '⚪️') + ` End of every half era (${config.eraLengthMins / (2 * 60)} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins / 2}}`}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}]
     ]
     const replyMarkup = {
         inline_keyboard: keyboard
@@ -231,11 +274,13 @@ async function sendBlocksAuthored(chatId, validator, blockNumbers) {
         return; 
     } else if (blockNumbers.length == 1) {
         message = `${validator.name} has authored block ` 
-            + `[${blockNumbers[0]}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumbers[0]}). 🎉`;
-    } else {
+            + `[${blockNumbers[0]}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumbers[0]}).`;
+    } else if (blockNumbers.length < 11) {
         message = `${validator.name} has authored blocks `
             + blockNumbers.map(blockNumber => `[${blockNumber}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumber})`).join(', ')
-            + '. 🎉';
+            + '.';
+    } else {
+        message = `${validator.name} has authored ${blockNumbers.length} blocks.`;
     }
     return await sendMessage(chatId, message);
 }
@@ -279,6 +324,25 @@ async function sendValidatorSelection(validators, chatId, message) {
     await sendMessage(chatId, message, replyMarkup);
 }
 
+async function sendAbout(chatId) {
+    const message = 
+`*v${config.version}*
+
+*Developer:* Kutsal Kaan Bilgin
+*Mail:* kutsal@helikon.tech
+*Repo:* [https://github.com/kukabi/polkadot-kusama-1kv-telegram-bot](github.com/kukabi/polkadot-kusama-1kv-telegram-bot)
+*Matrix:* \`kukabi@helikon:matrix.org\`
+
+*Validator & Stash Address:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
+*1KV Validator Name:* ⛰  Helikon Labs 001  ⛰
+
+Feel free to tip or nominate my stash/validator:)
+Please submit issues to the [GitHub repo](github.com/kukabi/polkadot-kusama-1kv-telegram-bot) for any bugs or ideas.
+Happy validating 🎉
+`;
+    await sendMessage(chatId, message);
+}
+
 async function sendHelp(chatId) {
     const message = dedent(
         `Here's a list of commands to help you receive notifications about your validator node in the [${config.networkName} Thousand Validators Programme](${config.network1KVInfoURL}).
@@ -286,14 +350,17 @@ async function sendHelp(chatId) {
         /add - add a new validator
         /remove - remove an existing validator
         /validatorinfo - get information about one of the added validators
+        /stakinginfo - view self, active and inactive stake amounts
         /settings - configure the bot (only block authorship notification frequency for the moment)
+        /about - version and developer info
         /help - display this message`
     );
     await sendMessage(chatId, message);
 }
 
-async function sendClaimPaymentWarning(validator, era) {
-    const message = `💰 *${validator.name}* has unclaimed rewards for era ${era}. Please [claim your payouts](https://polkadot.js.org/apps/#/staking/payout) as soon as possible.`
+async function sendUnclaimedPayoutWarning(validator, eras) {
+    const erasString = eras.join(', ');
+    const message = `💰 *${validator.name}* has unclaimed rewards for ${eras.length > 1 ? 'eras' : 'era'} ${erasString}. Please [claim your payouts](https://polkadot.js.org/apps/#/staking/payout) as soon as possible.`
     for (let chatId of validator.chatIds) {
         await sendMessage(chatId, message);
     }
@@ -301,6 +368,26 @@ async function sendClaimPaymentWarning(validator, era) {
 
 async function sendChatHasMaxValidators(chatId, maxValidatorsPerChat) {
     const message = `You cannot have more than ${maxValidatorsPerChat} validators per chat.`;
+    await sendMessage(chatId, message);
+}
+
+async function sendLoadingStakingInfo(chatId) {
+    const message = 'Loading staking info, please wait.';
+    await sendMessage(chatId, message);
+}
+
+async function sendStakingInfo(chatId, stakingInfo) {
+    
+    const message = dedent(
+        `*Self Stake:* ${formatAmount(stakingInfo.selfStake)}
+        *Total Active:* ${formatAmount(stakingInfo.active.totalStake)} from ${stakingInfo.active.stakes.length} nominator(s) and self stake
+        *Total Inactive:* ${formatAmount(stakingInfo.inactive.totalBonded)} from ${stakingInfo.inactive.nominations.length} nominator(s)`
+    );
+    await sendMessage(chatId, message);
+}
+
+async function sendReleaseNotes(chatId) {
+    const message = `📣 Bot upgraded to *v${config.version}*\n\n` + releaseNotes;
     await sendMessage(chatId, message);
 }
 
@@ -327,7 +414,9 @@ async function deleteMessage(chatId, messageId) {
 }
 
 module.exports = {
+    formatAmount: formatAmount,
     sendMessage: sendMessage,
+    sendTypingAction: sendTypingAction,
     sendValidatorNotFound: sendValidatorNotFound,
     sendValidatorAdded: sendValidatorAdded,
     sendUnexpectedError: sendUnexpectedError,
@@ -342,10 +431,14 @@ module.exports = {
     sendNoValidators: sendNoValidators,
     sendAddValidator: sendAddValidator,
     sendValidatorSelection: sendValidatorSelection,
+    sendAbout: sendAbout,
     sendHelp: sendHelp,
-    sendClaimPaymentWarning: sendClaimPaymentWarning,
+    sendUnclaimedPayoutWarning: sendUnclaimedPayoutWarning,
     sendChatHasMaxValidators: sendChatHasMaxValidators,
     sendSettings: sendSettings,
+    sendLoadingStakingInfo: sendLoadingStakingInfo,
+    sendStakingInfo: sendStakingInfo,
+    sendReleaseNotes: sendReleaseNotes,
     answerCallbackQuery: answerCallbackQuery,
     deleteMessage: deleteMessage
 };

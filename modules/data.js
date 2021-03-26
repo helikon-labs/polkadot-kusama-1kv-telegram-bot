@@ -14,21 +14,25 @@ const ChatState = {
     IDLE: 'IDLE',
     ADD: 'ADD',
     REMOVE: 'REMOVE',
-    VALIDATOR_INFO: 'VALIDATOR_INFO'
+    VALIDATOR_INFO: 'VALIDATOR_INFO',
+    STAKING_INFO_LOADING: 'STAKING_INFO_LOADING',
+    STAKING_INFO_SELECT_VALIDATOR: 'STAKING_INFO_SELECT_VALIDATOR'
 };
 
-const BlockNotificationPeriod = {
+const BlockNotificationPeriod = { // in minutes
+    OFF: -1,
     IMMEDIATE: 0,
     HOURLY: 60,
     HALF_ERA: config.eraLengthMins / 2,
     ERA_END: config.eraLengthMins
 };
 
-async function start(onNewBlock, onNewEra) {
+async function start(onFinalizedBlock, onNewEra) {
     logger.info(`Get MongoDB connection.`);
     await MongoDB.connectMongoDB();
+    await migrate(config.version);
     logger.info(`Get ${config.networkName} RPC connection.`);
-    await Polkadot.connectPolkadot(onNewBlock, onNewEra);
+    await Polkadot.connectPolkadot(onFinalizedBlock, onNewEra);
     telegramConfig = await initTelegram();
 }
 
@@ -51,6 +55,12 @@ async function initTelegram() {
     return telegramConfig;
 }
 
+async function migrate(version) {
+    if (version == '1.2.1') {
+        logger.info('No migration for version 1.2.1.')
+    }
+}
+
 function getTelegramUpdateOffset() {
     return telegramConfig.updateOffset;
 }
@@ -62,6 +72,11 @@ async function setTelegramUpdateOffset(updateOffset) {
         { },
         { $set: { updateOffset: updateOffset } }
     );
+}
+
+async function getAllChats() {
+    let chatCollection = await MongoDB.getChatCollection();
+    return await chatCollection.find({}).toArray();
 }
 
 async function getChatById(chatId) {
@@ -79,15 +94,30 @@ async function setChatState(chatId, state) {
     );
 }
 
+async function setChatVersion(chatId, version) {
+    let chatCollection = await MongoDB.getChatCollection();
+    await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { version: version } }
+    );
+}
+
 async function createChat(chatId) {
     let chatCollection = await MongoDB.getChatCollection();
     chat = {
         chatId: chatId,
         state: ChatState.IDLE,
-        blockNotificationPeriod: BlockNotificationPeriod.IMMEDIATE
+        blockNotificationPeriod: BlockNotificationPeriod.HOURLY,
+        version: config.version
     };
     await chatCollection.insertOne(chat);
     return await getChatById(chatId);
+}
+
+async function deleteChat(chatId) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.deleteOne({chatId: chatId});
+    return result.result.ok && result.result.n == 1;
 }
 
 async function fetchValidator(stashAddress) {
@@ -249,8 +279,14 @@ async function getPendingBlockNotifications(notificationPeriod) {
 }
 
 async function getPendingBlockNotificationsForChat(chatId) {
-    let notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    const notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
     return await notificationCollection.find({chatId: chatId}).toArray();
+}
+
+async function deletePendingBlockNotificationsForChat(chatId) {
+    const notificationCollection = await MongoDB.getPendingBlockNotificationCollection();
+    const result = await notificationCollection.deleteMany({chatId: chatId});
+    return result.result.ok;
 }
 
 async function deletePendingBlockNotification(notification) {
@@ -291,12 +327,30 @@ async function setChatBlockNotificationPeriod(chatId, blockNotificationPeriod) {
     return result.result.ok && result.result.n == 1;
 }
 
+async function getActiveStakeInfoForCurrentEra(address) {
+    const currentEra = parseInt(await Polkadot.getCurrentEra());
+    return await Polkadot.getActiveStakesForEra(address, currentEra);
+}
+
+async function getStakingInfo(address) {
+    const currentEra = parseInt(await Polkadot.getCurrentEra());
+    const selfStake = await Polkadot.getSelfStake(address);
+    const activeStakes = await Polkadot.getActiveStakesForEra(address, currentEra);
+    const inactiveNominations = await Polkadot.getInactiveNominations(address, activeStakes.stakes);
+    return {
+        selfStake: selfStake,
+        active: activeStakes,
+        inactive: inactiveNominations
+    };
+}
+
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
     start: start,
     stop: stop,
     setChatState: setChatState,
+    setChatVersion: setChatVersion,
     fetchValidator: fetchValidator,
     persistValidator: persistValidator,
     removeValidator: removeValidator,
@@ -308,13 +362,18 @@ module.exports = {
     getValidatorsForChat: getValidatorsForChat,
     getAllValidators: getAllValidators,
     updateValidator: updateValidator,
+    getAllChats: getAllChats,
     getChatById: getChatById,
     createChat: createChat,
+    deleteChat: deleteChat,
     savePendingBlockNotification: savePendingBlockNotification,
     getPendingBlockNotifications: getPendingBlockNotifications,
     getPendingBlockNotificationsForChat: getPendingBlockNotificationsForChat,
+    deletePendingBlockNotificationsForChat: deletePendingBlockNotificationsForChat,
     deletePendingBlockNotification: deletePendingBlockNotification,
     setChatLastSettingsCommandMessageId: setChatLastSettingsCommandMessageId,
     setChatLastSettingsMessageId: setChatLastSettingsMessageId,
-    setChatBlockNotificationPeriod: setChatBlockNotificationPeriod
+    setChatBlockNotificationPeriod: setChatBlockNotificationPeriod,
+    getStakingInfo: getStakingInfo,
+    getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra
 };
