@@ -16,9 +16,9 @@ const releaseNotes =
 `- Turn off block notifications in /settings.
 - Block notifications will be sent/scheduled only when the blocks get finalized.
 - New /stakinginfo command to view the self, active and inactive stake amounts for a validator.
-- Checks unclaimed payouts four days back.
-- Unclaimed payouts check is delayed for an hour after an era change to avoid confusion and to take automatic payout scripts into account.
 - New /about command gives version and developer info.
+- Checks unclaimed payouts four days back.
+- Unclaimed payouts check is delayed for an hour after an era change to avoid latency differences with Polkadot JS and to take automatic payout scripts into account.
 - Active stake amount is now included in the notification for when a validator gets in the active validator set.`;
 
 const formatAmount = amount => {
@@ -227,13 +227,6 @@ async function sendValidatorInfo(chatId, validator) {
     // commission
     if (validator.commission) {
         validatorInfo += `\n💵 Commission rate is ${validator.commission}`;
-    }
-    // nominated
-    if (validator.nominatedAt && validator.nominatedAt > 0) {
-        const nominatedAt = moment.utc(new Date(validator.nominatedAt)).format('MMMM Do YYYY, HH:mm:ss');
-        validatorInfo += `\n🤘 Nominated on ${nominatedAt} UTC`;
-    } else {
-        validatorInfo += `\n👎 Is not currently nominated`;
     }
     
     // version
