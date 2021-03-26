@@ -107,6 +107,9 @@ async function processTelegramUpdate(update) {
         processCallbackQuery(update.callback_query);
         return;
     }
+    if (!update.message) { // TODO this is a temporary fix - check why the crash is happening
+        return;
+    }
     const chatId = update.message.chat.id;
     var isGroupChat = update.message.chat.type == 'group';
     let chat = await Data.getChatById(chatId);
