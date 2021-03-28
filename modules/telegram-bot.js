@@ -389,11 +389,18 @@ async function updateValidator(validator) {
         if (validator.rank < w3fValidator.rank) {
             updates.rank = w3fValidator.rank;
             message += '\n📈 rank has increased from ' + validator.rank + ' to ' + w3fValidator.rank;
+            await Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
             updateCount++;
         } else if (validator.rank > w3fValidator.rank) {
             updates.rank = w3fValidator.rank;
             message += '\n📉 rank has decreased from ' + validator.rank + ' to ' + w3fValidator.rank;
+            Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
             updateCount++;
+        }
+        // save rank if no record exists
+        const rankHistoryCount = await Data.getRankHistoryCount(validator.stashAddress);
+        if (rankHistoryCount == 0) {
+            await Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
         }
         // compare 1KV validity
         if (validator.invalidityReasons && validator.invalidityReasons.length > 0 
@@ -615,8 +622,8 @@ const start = async () => {
     const allChats = await Data.getAllChats();
     for (let chat of allChats) {
         if (!chat.version || chat.version != config.version) {
-            Messaging.sendReleaseNotes(chat.chatId);
-            Data.setChatVersion(chat.chatId, config.version);
+            await Messaging.sendReleaseNotes(chat.chatId);
+            await Data.setChatVersion(chat.chatId, config.version);
         }
     }
 

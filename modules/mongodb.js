@@ -10,7 +10,8 @@ const mongoConfig = {
     telegramConfigCollection: 'telegram_config',
     validatorCollection: 'validators',
     chatCollection: 'chats',
-    pendingBlockNotificationCollection: 'pending_block_notifications'
+    pendingBlockNotificationCollection: 'pending_block_notifications',
+    rankHistoryCollection: 'rank_history'
 }
 
 let mongoDBClient;
@@ -58,11 +59,16 @@ async function getPendingBlockNotificationCollection() {
     return await mongoDB.collection(mongoConfig.pendingBlockNotificationCollection);
 }
 
+async function getRankHistoryCollection() {
+    return await mongoDB.collection(mongoConfig.rankHistoryCollection);
+}
+
 module.exports = {
     connectMongoDB: connectMongoDB,
     disconnectMongoDB: disconnectMongoDB,
     getValidatorCollection: getValidatorCollection,
     getChatCollection: getChatCollection,
     getTelegramConfigCollection: getTelegramConfigCollection,
-    getPendingBlockNotificationCollection: getPendingBlockNotificationCollection
+    getPendingBlockNotificationCollection: getPendingBlockNotificationCollection,
+    getRankHistoryCollection: getRankHistoryCollection
 };

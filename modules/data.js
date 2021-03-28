@@ -104,7 +104,7 @@ async function setChatVersion(chatId, version) {
 
 async function createChat(chatId) {
     let chatCollection = await MongoDB.getChatCollection();
-    chat = {
+    const chat = {
         chatId: chatId,
         state: ChatState.IDLE,
         blockNotificationPeriod: BlockNotificationPeriod.HOURLY,
@@ -344,6 +344,22 @@ async function getStakingInfo(address) {
     };
 }
 
+async function saveRankChange(stashAddress, rank) {
+    let rankHistoryCollection = await MongoDB.getRankHistoryCollection();
+    const rankChange = {
+        stashAddress: stashAddress,
+        rank: rank,
+        date: new Date()
+    };
+    const result = await rankHistoryCollection.insertOne(rankChange);
+    return result.result.ok && result.result.n == 1;
+}
+
+async function getRankHistoryCount(stashAddress) {
+    let rankHistoryCollection = await MongoDB.getRankHistoryCollection();
+    return await rankHistoryCollection.countDocuments({ stashAddress: stashAddress });
+}
+
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
@@ -375,5 +391,7 @@ module.exports = {
     setChatLastSettingsMessageId: setChatLastSettingsMessageId,
     setChatBlockNotificationPeriod: setChatBlockNotificationPeriod,
     getStakingInfo: getStakingInfo,
-    getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra
+    getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra,
+    saveRankChange: saveRankChange,
+    getRankHistoryCount: getRankHistoryCount
 };
