@@ -19,8 +19,9 @@
     },
     "license": "ISC",
     "dependencies": {
-        "@polkadot/api": "^3.9.3",
+        "@polkadot/api": "^4.4.1",
         "dedent": "^0.7.0",
+        "divide-bigint": "^1.0.4",
         "dotenv": "^8.2.0",
         "markdown-escape": "^1.1.0",
         "moment": "^2.29.1",

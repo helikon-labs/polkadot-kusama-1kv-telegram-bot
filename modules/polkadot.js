@@ -135,6 +135,27 @@ async function getSessionKeys(address) {
     return sessionKeyHex;
 }
 
+async function getRewardsInBlock(blockNumber) {
+    const blockHash = await api.rpc.chain.getBlockHash(blockNumber);
+    const allRecords = await api.query.system.events.at(blockHash);
+    const timestamp = await api.query.timestamp.now.at(blockHash);
+    const rewards = [];
+    for (let i = 0; i < allRecords.length; i++) {
+        const { event } = allRecords[i];
+        if (event.section.toLowerCase() == 'staking'
+                && event.method.toLowerCase() == 'reward') {
+            const reward = {
+                blockNumber: blockNumber,
+                timestamp: parseInt(timestamp.toString()),
+                targetStashAddress: event.data[0].toString(),
+                amount: event.data[1].toString()
+            };
+            rewards.push(reward);
+        }
+    }
+    return rewards;
+}
+
 async function checkEraChange() {
     const currentEra = await getCurrentEra();
     if (currentEra > lastEra) {
@@ -187,5 +208,6 @@ module.exports = {
     payoutClaimedForAddressForEra: payoutClaimedForAddressForEra,
     getSelfStake: getSelfStake,
     getActiveStakesForEra: getActiveStakesForEra,
-    getInactiveNominations: getInactiveNominations
+    getInactiveNominations: getInactiveNominations,
+    getRewardsInBlock: getRewardsInBlock
 }

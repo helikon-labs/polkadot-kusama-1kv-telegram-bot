@@ -11,7 +11,9 @@ const mongoConfig = {
     validatorCollection: 'validators',
     chatCollection: 'chats',
     pendingBlockNotificationCollection: 'pending_block_notifications',
-    rankHistoryCollection: 'rank_history'
+    rankHistoryCollection: 'rank_history',
+    rewardCollection: 'rewards',
+    rewardFetchInfoCollection: 'reward_fetch_info'
 }
 
 let mongoDBClient;
@@ -63,6 +65,14 @@ async function getRankHistoryCollection() {
     return await mongoDB.collection(mongoConfig.rankHistoryCollection);
 }
 
+async function getRewardCollection() {
+    return await mongoDB.collection(mongoConfig.rewardCollection);
+}
+
+async function getRewardFetchInfoCollection() {
+    return await mongoDB.collection(mongoConfig.rewardFetchInfoCollection);
+}
+
 module.exports = {
     connectMongoDB: connectMongoDB,
     disconnectMongoDB: disconnectMongoDB,
@@ -70,5 +80,7 @@ module.exports = {
     getChatCollection: getChatCollection,
     getTelegramConfigCollection: getTelegramConfigCollection,
     getPendingBlockNotificationCollection: getPendingBlockNotificationCollection,
-    getRankHistoryCollection: getRankHistoryCollection
+    getRankHistoryCollection: getRankHistoryCollection,
+    getRewardCollection: getRewardCollection,
+    getRewardFetchInfoCollection: getRewardFetchInfoCollection
 };

@@ -114,6 +114,15 @@ async function createChat(chatId) {
     return await getChatById(chatId);
 }
 
+async function saveRewards(rewards) {
+    if (!rewards || !rewards.length || rewards.length < 1) {
+        return;
+    }
+    let rewardCollection = await MongoDB.getRewardCollection();
+    let result = await rewardCollection.insertMany(rewards);
+    return result.result.ok == 1;
+}
+
 async function deleteChat(chatId) {
     let chatCollection = await MongoDB.getChatCollection();
     const result = await chatCollection.deleteOne({chatId: chatId});
@@ -360,6 +369,26 @@ async function getRankHistoryCount(stashAddress) {
     return await rankHistoryCollection.countDocuments({ stashAddress: stashAddress });
 }
 
+async function getLastFetchedRewardBlock() {
+    let rewardFetchInfoCollection = await MongoDB.getRewardFetchInfoCollection();
+    let rewardFetchInfo = await rewardFetchInfoCollection.findOne({});
+    if (!rewardFetchInfo) {
+        logger.info(`Reward fetch info not found in db, saving.`);
+        let info = { lastFetchedBlockNumber: -1 };
+        await rewardFetchInfoCollection.insertOne(info);
+        rewardFetchInfo = await rewardFetchInfoCollection.findOne({});
+    }
+    return rewardFetchInfo.lastFetchedBlockNumber;
+}
+
+async function setLastFetchedRewardBlock(blockNumber) {
+    let rewardFetchInfoCollection = await MongoDB.getRewardFetchInfoCollection();
+    await rewardFetchInfoCollection.updateOne(
+        { },
+        { $set: { lastFetchedBlockNumber: blockNumber } }
+    );
+}
+
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
@@ -393,5 +422,8 @@ module.exports = {
     getStakingInfo: getStakingInfo,
     getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra,
     saveRankChange: saveRankChange,
-    getRankHistoryCount: getRankHistoryCount
+    getRankHistoryCount: getRankHistoryCount,
+    saveRewards: saveRewards,
+    getLastFetchedRewardBlock: getLastFetchedRewardBlock,
+    setLastFetchedRewardBlock: setLastFetchedRewardBlock
 };

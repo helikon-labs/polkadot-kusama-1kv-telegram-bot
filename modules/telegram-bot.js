@@ -15,6 +15,8 @@ const config = require('./config').config;
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const maxValidatorsPerChat = 20;
 
+let isFetchingRewards = false;
+
 async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
     try {
         const validatorFetchResult = await Data.fetchValidator(stashAddress);
@@ -551,11 +553,32 @@ async function sendPendingNotificationsForChat(chatId) {
     }
 }
 
+async function processRewardsUpToBlock(blockNumber) {
+    if (isFetchingRewards) { return; }
+    isFetchingRewards = true;
+    const startBlockNumber = (await Data.getLastFetchedRewardBlock()) + 1;
+    for (let i = startBlockNumber; i <= blockNumber; i++) {
+        try {
+            const rewards = await Polkadot.getRewardsInBlock(i);
+            await Data.saveRewards(rewards);
+            await Data.setLastFetchedRewardBlock(i);
+            logger.info(`Did fetch and save ${rewards.length} rewards in block #${i}`);
+        } catch (error) {
+            logger.error(`Error while fetching rewards in block #${i}: ${error}`);
+            break;
+        }
+    }
+    isFetchingRewards = false;
+}
+
 async function onFinalizedBlock(blockNumber, blockHash, blockAuthor) {
     logger.info(`⛓  Finalized block #${blockNumber} authored by ${blockAuthor}`);
     const validator = await Data.getValidatorByStashAddress(blockAuthor);
     if (validator) {
         processNewBlockByValidator(blockNumber, validator)
+    }
+    if (blockNumber % 150 == 0) { // ~ every 15 minutes
+        processRewardsUpToBlock(blockNumber - 50);
     }
 }
 

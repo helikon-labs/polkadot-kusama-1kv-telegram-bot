@@ -18,7 +18,8 @@ const config = {
     network1KVInfoURL: '',
     rpcURL: '',
     w3fBaseURL: '',
-    eraLengthMins: 0
+    eraLengthMins: 0,
+    approximateBlockTimeSecs: 6
 };
 
 const configure = () => {

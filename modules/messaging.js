@@ -5,6 +5,8 @@ const fetch = require('node-fetch');
 const dedent = require('dedent');
 const moment = require('moment');
 const markdownEscape = require('markdown-escape');
+const fs = require('fs');
+const FormData = require('form-data');
 
 const logger = require('./logging');
 const config = require('./config').config;
@@ -96,6 +98,45 @@ async function sendMessage(chatId, message, replyMarkup) {
         }
     } else {
         logger.error(`Error while sending message "${message}" to chat ${chatId}.`);
+        return null;
+    }
+}
+
+async function sendImage(chatId, filePath, fileName) {
+    const form = new FormData();
+    form.append('chat_id', chatId);
+    form.append(
+        'photo',
+        fs.readFileSync(filePath),
+        {
+            contentType: 'image/png',
+            name: 'photo',
+            filename: fileName,
+        }
+    );
+    const response = await fetch(
+        telegramBaseURL + '/sendPhoto',
+        {
+            method: 'post',
+            body: form
+        }
+    );
+    const successful = response.status % 200 < 100;
+    if (successful) {
+        try {
+            const responseJSON = await response.json();
+            if (!responseJSON.ok && responseJSON.error_code == 403) {
+                logger.info(`Bot blocked by user. Delete chat ${chatId}.`);
+                await Data.deleteChat(chatId);
+                return;
+            }
+            logger.info(`Photo "${fileName}" sent to chat ${chatId} successfully.`);
+            return responseJSON.result;
+        } catch (error) {
+            return null;
+        }
+    } else {
+        logger.error(`Error while sending photo "${fileName}" to chat ${chatId}.`);
         return null;
     }
 }
@@ -409,6 +450,7 @@ async function deleteMessage(chatId, messageId) {
 module.exports = {
     formatAmount: formatAmount,
     sendMessage: sendMessage,
+    sendImage: sendImage,
     sendTypingAction: sendTypingAction,
     sendValidatorNotFound: sendValidatorNotFound,
     sendValidatorAdded: sendValidatorAdded,
