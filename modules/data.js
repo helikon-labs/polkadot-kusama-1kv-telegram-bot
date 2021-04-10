@@ -161,6 +161,14 @@ async function updateValidator(validator, updates) {
     );
 }
 
+async function updateValidatorVersion(validator, version) {
+    let validatorCollection = await MongoDB.getValidatorCollection();
+    return await validatorCollection.updateOne(
+        { stashAddress: validator.stashAddress },
+        { $set: { version: version } }
+    );
+}
+
 async function persistValidator(w3fValidator, chatId) {
     const validator = {
         name: w3fValidator.name,
@@ -402,6 +410,7 @@ module.exports = {
     getValidatorByName: getValidatorByName,
     getValidatorByStashAddress: getValidatorByStashAddress,
     updateValidatorChatIds: updateValidatorChatIds,
+    updateValidatorVersion: updateValidatorVersion,
     setTelegramUpdateOffset: setTelegramUpdateOffset,
     getTelegramUpdateOffset: getTelegramUpdateOffset,
     getValidatorsForChat: getValidatorsForChat,

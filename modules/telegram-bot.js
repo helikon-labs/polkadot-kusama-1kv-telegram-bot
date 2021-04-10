@@ -473,6 +473,8 @@ async function updateValidator(validator) {
                 message += '\n' + '❗ got out of date with version `' + validator.version + '`.';
             }
             updateCount++;
+        } else if (validator.version != w3fValidator.version) {
+            await Data.updateValidatorVersion(validator, w3fValidator.version);
         }
         if (updateCount > 0) {
             logger.info(`Updating [${validator.stashAddress}] with ${updateCount} properties.`);
