@@ -28,6 +28,13 @@ const BlockNotificationPeriod = { // in minutes
     ERA_END: config.eraLengthMins
 };
 
+const UnclaimedPayoutNotificationPeriod = { // in eras
+    OFF: -1,
+    EVERY_ERA: 1,
+    TWO_ERAS: 2,
+    FOUR_ERAS: 4
+};
+
 async function start(onFinalizedBlock, onNewEra) {
     logger.info(`Get MongoDB connection.`);
     await MongoDB.connectMongoDB();
@@ -58,7 +65,18 @@ async function initTelegram() {
 
 async function migrate(version) {
     if (version == '1.2.1') {
-        logger.info('No migration for version 1.2.1.')
+        logger.info('No migration for version 1.2.1.');
+    } else if (version == '1.3.0') {
+        logger.info('Migrating for version 1.3.0.');
+        const chats = await getAllChats();
+        for (let chat of chats) {
+            if (!chat.unclaimedPayoutNotificationPeriod) {
+                await setChatUnclaimedPayoutNotificationPeriod(
+                    chat.chatId,
+                    UnclaimedPayoutNotificationPeriod.EVERY_ERA
+                );
+            }
+        }
     }
 }
 
@@ -345,6 +363,15 @@ async function setChatBlockNotificationPeriod(chatId, blockNotificationPeriod) {
     return result.result.ok && result.result.n == 1;
 }
 
+async function setChatUnclaimedPayoutNotificationPeriod(chatId, unclaimedPayoutNotificationPeriod) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { unclaimedPayoutNotificationPeriod: unclaimedPayoutNotificationPeriod } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
 async function getActiveStakeInfoForCurrentEra(address) {
     const currentEra = parseInt(await Polkadot.getCurrentEra());
     return await Polkadot.getActiveStakesForEra(address, currentEra);
@@ -406,6 +433,7 @@ async function getRewards(targetStashAddress) {
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
+    UnclaimedPayoutNotificationPeriod: UnclaimedPayoutNotificationPeriod,
     start: start,
     stop: stop,
     setChatState: setChatState,
@@ -434,6 +462,7 @@ module.exports = {
     setChatLastSettingsCommandMessageId: setChatLastSettingsCommandMessageId,
     setChatLastSettingsMessageId: setChatLastSettingsMessageId,
     setChatBlockNotificationPeriod: setChatBlockNotificationPeriod,
+    setChatUnclaimedPayoutNotificationPeriod: setChatUnclaimedPayoutNotificationPeriod,
     getStakingInfo: getStakingInfo,
     getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra,
     saveRankChange: saveRankChange,

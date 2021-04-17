@@ -20,13 +20,11 @@ const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey
 const graphFontFamily = 'DejaVuSans';
 
 const releaseNotes =
-`- Turn off block notifications in /settings.
-- Block notifications will be sent/scheduled only when the blocks get finalized.
-- New /stakinginfo command to view the self, active and inactive stake amounts for a validator.
-- New /about command gives version and developer info.
-- Checks unclaimed payouts four days back.
-- Unclaimed payouts check is delayed for an hour after an era change to avoid latency differences with Polkadot JS and to take automatic payout scripts into account.
-- Active stake amount is now included in the notification for when a validator gets in the active validator set.`;
+`- /rewards command to view monthly reward report for one of your validators or *any validator or nominator address*.
+- Turn on/off and configure unclaimed payout notifications in /settings.
+- Bug fixes.
+
+*Warning:* Polkadot bot hasn't been updated yet.`;
 
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
@@ -125,6 +123,7 @@ async function sendMessage(chatId, message, replyMarkup) {
 async function sendImage(chatId, filePath, fileName) {
     const form = new FormData();
     form.append('chat_id', chatId);
+    form.append('reply_markup', '{ "remove_keyboard": true }');
     form.append(
         'photo',
         fs.readFileSync(filePath),
@@ -232,12 +231,18 @@ async function sendUnexpectedError(chatId) {
 
 async function sendSettings(chat, messageId) {
     const keyboard = [
-        [{ text: 'Block Authorship Notifications', callback_data: 'no_op'}],
+        [{ text: '- Block Authorship Notifications -'.toUpperCase(), callback_data: 'no_op'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"blockNotificationPeriod": -1}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HALF_ERA ? '🟢' : '⚪️') + ` End of every half era (${config.eraLengthMins / (2 * 60)} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins / 2}}`}],
-        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}]
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}],
+        [{ text: '- Unclaimed Payout Notifications -'.toUpperCase(), callback_data: 'no_op'}],
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"unclaimedPayoutNotificationPeriod": -1}'}],
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.EVERY_ERA ? '🟢' : '⚪') + ' Every era', callback_data: '{"unclaimedPayoutNotificationPeriod": 1}'}],
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.TWO_ERAS ? '🟢' : '⚪️') + ' Every 2 eras', callback_data: '{"unclaimedPayoutNotificationPeriod": 2}'}],
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.FOUR_ERAS ? '🟢' : '⚪️') + ` Every 4 eras`, callback_data: '{"unclaimedPayoutNotificationPeriod": 4}'}],
+        [{ text: '-> Tap Here to Close <-', callback_data: '{"closeSettings": true}'}]
     ]
     const replyMarkup = {
         inline_keyboard: keyboard
@@ -382,7 +387,7 @@ async function sendAddressSelectionForRewards(validators, chatId) {
     let replyMarkup = null;
     let message = 'Please enter an address to view the rewards report for:'
     if (validators.length > 0) {
-        message = 'Please select a validator stash address from below, or enter another address to view the rewards report:'
+        message = 'Please select a validator stash address from below, or enter *any validator or nominator address* to view the rewards report:'
         const buttons = validators.map(validator => [{text: validator.name}]);
         replyMarkup = {
             keyboard: buttons,
@@ -587,10 +592,8 @@ async function sendRewardsReport(chatId, targetStashAddress, rewards) {
         .attr('font-family', graphFontFamily)
         .attr('font-size', '10px')
         .append('text')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', 130)
-        .attr('x', -20)
-        .attr('dy', '-9.1em')
+        .attr('y', 20)
+        .attr('x', 90)
         .attr('fill', 'black')
         .attr('font-family', graphFontFamily)
         .attr('font-size', '12px')
