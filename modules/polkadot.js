@@ -6,6 +6,8 @@ const{ ApiPromise, WsProvider } = require('@polkadot/api');
 const { decodeAddress, encodeAddress } = require('@polkadot/keyring');
 const { hexToU8a, isHex } = require('@polkadot/util');
 const cron = require('node-cron');
+const divide = require('divide-bigint');
+
 const logger = require('./logging');
 const config = require('./config').config;
 
@@ -65,7 +67,10 @@ async function getController(stashAddress) {
 async function getSelfStake(address) {
     const controller = await getController(address);
     const ledger = (await api.query.staking.ledger(controller)).toJSON();
-    const selfStake = (ledger ? ledger.active : 0) / Math.pow(10, 12);
+    const selfStake = divide(
+        BigInt((ledger ? ledger.active : 0)),
+        BigInt(Math.pow(10, config.tokenDecimals))
+    );
     return selfStake;
 }
 
@@ -76,13 +81,19 @@ async function getActiveStakesForEra(address, era) {
             async(stake) => {
                 return {
                     address: stake.who.toString(),
-                    amount: stake.value / Math.pow(10, 12)
+                    amount: divide(
+                        BigInt(stake.value),
+                        BigInt(Math.pow(10, config.tokenDecimals))
+                    )
                 }
             }
         )
     );
     return {
-        totalStake: eraStakers.total / Math.pow(10, 12),
+        totalStake: divide(
+            BigInt(eraStakers.total),
+            BigInt(Math.pow(10, config.tokenDecimals))
+        ),
         stakes: stakes
     };
 }
@@ -97,7 +108,10 @@ async function getInactiveNominations(address, activeNominators) {
         const bonded = (await api.query.staking.ledger(controller.toString())).toJSON().active;
         return {
             address: address,
-            bonded: bonded / Math.pow(10, 12)
+            bonded: divide(
+                BigInt(bonded),
+                BigInt(Math.pow(10, config.tokenDecimals))
+            )
         }
     }));
 
@@ -170,6 +184,10 @@ async function connectPolkadot(onFinalizedBlock, onNewEra) {
     const wsProvider = new WsProvider(config.rpcURL);
     api = new ApiPromise({ provider: wsProvider });
     await api.isReady;
+
+    const systemProperties = (await api.rpc.system.properties()).toHuman();
+    config.tokenSymbol = systemProperties.tokenSymbol[0];
+    config.tokenDecimals = parseInt(systemProperties.tokenDecimals[0]);
 
     await api.rpc.chain.subscribeFinalizedHeads(async function(blockHeader) {
         const blockNumber = parseInt(blockHeader.number);

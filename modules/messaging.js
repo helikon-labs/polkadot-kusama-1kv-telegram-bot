@@ -24,7 +24,7 @@ const releaseNotes =
 - Active stake amount is now included in the notification for when a validator gets in the active validator set.`;
 
 const formatAmount = amount => {
-    return `${amount.toFixed(4)} ${config.tokenTicker}`
+    return `${amount.toFixed(4)} ${config.tokenSymbol}`
 }
 
 async function updateMessage(chatId, messageId, message, replyMarkup) {
