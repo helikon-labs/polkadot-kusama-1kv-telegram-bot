@@ -23,8 +23,23 @@ const releaseNotes =
 - Unclaimed payouts check is delayed for an hour after an era change to avoid latency differences with Polkadot JS and to take automatic payout scripts into account.
 - Active stake amount is now included in the notification for when a validator gets in the active validator set.`;
 
+function toFixedWithoutRounding (value, precision) {
+    var factorError = Math.pow(10, 14);
+    var factorTruncate = Math.pow(10, 14 - precision);
+    var factorDecimal = Math.pow(10, precision);
+    return Math.floor(
+        Math.floor(value * factorError + 1) / factorTruncate
+    ) / factorDecimal;
+}
+
 const formatAmount = amount => {
-    return `${amount.toFixed(4)} ${config.tokenSymbol}`
+    const value = toFixedWithoutRounding(
+        amount, 4
+    ).toLocaleString(
+        'en-US',
+        { minimumFractionDigits: 4 }
+    );
+    return `${value} ${config.tokenSymbol}`
 }
 
 async function updateMessage(chatId, messageId, message, replyMarkup) {
