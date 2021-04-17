@@ -10,6 +10,7 @@ const config = {
     version: '1.2.1',
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,
+    tempFileDir: process.env.TEMP_FILE_DIR,
     telegramBotAuthKey: process.env.TELEGRAM_BOT_AUTH_KEY,
     telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME,
     // these fields get populated by the runtime config below

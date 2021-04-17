@@ -239,6 +239,10 @@ async function processTelegramUpdate(update) {
                 );
             }
         }
+    } else if (text == `/rewards`) {
+        const validators = await Data.getValidatorsForChat(chatId);
+        await Messaging.sendAddressSelectionForRewards(validators, chatId);
+        await Data.setChatState(chatId, Data.ChatState.REWARDS_ENTER_ADDRESS);
     } else {
         logger.info(`Received message [${text}] on state [${chat.state}].`);
         switch (chat.state) {
@@ -284,6 +288,23 @@ async function processTelegramUpdate(update) {
                     Messaging.sendStakingInfo(chatId, stakingInfo);
                 }
                 Data.setChatState(chatId, Data.ChatState.IDLE);
+                break;
+            case Data.ChatState.REWARDS_ENTER_ADDRESS:
+                const reportValidator = await Data.getValidatorByName(text);
+                let address;
+                if (reportValidator) {
+                    address = reportValidator.stashAddress;
+                    
+                } else if (Polkadot.isValidAddress(text)) {
+                    address = text;
+                }
+                if (address) {
+                    const rewards = await Data.getRewards(address);
+                    Messaging.sendRewardsReport(chatId, address, rewards);
+                } else {
+                    Messaging.sendMessage(chatId, 'Cannot generate rewards report: not a valid address or validator name.');
+                }
+                await Data.setChatState(chatId, Data.ChatState.IDLE);
                 break;
             default:
                 // should never reach here

@@ -7,12 +7,17 @@ const moment = require('moment');
 const markdownEscape = require('markdown-escape');
 const fs = require('fs');
 const FormData = require('form-data');
+const D3Node = require('d3-node');
+const d3 = require('d3');
+const sharp = require('sharp');
+const divide = require('divide-bigint');
 
 const logger = require('./logging');
 const config = require('./config').config;
 const Data = require('./data');
 
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
+const graphFontFamily = 'DejaVuSans';
 
 const releaseNotes =
 `- Turn off block notifications in /settings.
@@ -145,13 +150,13 @@ async function sendImage(chatId, filePath, fileName) {
                 await Data.deleteChat(chatId);
                 return;
             }
-            logger.info(`Photo "${fileName}" sent to chat ${chatId} successfully.`);
+            logger.info(`Image "${fileName}" sent to chat ${chatId} successfully.`);
             return responseJSON.result;
         } catch (error) {
             return null;
         }
     } else {
-        logger.error(`Error while sending photo "${fileName}" to chat ${chatId}.`);
+        logger.error(`Error while sending image "${fileName}" to chat ${chatId}.`);
         return null;
     }
 }
@@ -227,7 +232,7 @@ async function sendUnexpectedError(chatId) {
 
 async function sendSettings(chat, messageId) {
     const keyboard = [
-        [{ text: '🧱 Block Authorship Notifications 🧱'.toUpperCase(), callback_data: 'no_op'}],
+        [{ text: 'Block Authorship Notifications', callback_data: 'no_op'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"blockNotificationPeriod": -1}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
@@ -373,6 +378,21 @@ async function sendValidatorSelection(validators, chatId, message) {
     await sendMessage(chatId, message, replyMarkup);
 }
 
+async function sendAddressSelectionForRewards(validators, chatId) {
+    let replyMarkup = null;
+    let message = 'Please enter an address to view the rewards report for:'
+    if (validators.length > 0) {
+        message = 'Please select a validator stash address from below, or enter another address to view the rewards report:'
+        const buttons = validators.map(validator => [{text: validator.name}]);
+        replyMarkup = {
+            keyboard: buttons,
+            resize_keyboard: true,
+            one_time_keyboard: true
+        };
+    }
+    await sendMessage(chatId, message, replyMarkup);
+}
+
 async function sendAbout(chatId) {
     const message = 
 `*v${config.version}*
@@ -421,7 +441,7 @@ async function sendChatHasMaxValidators(chatId, maxValidatorsPerChat) {
 }
 
 async function sendLoadingStakingInfo(chatId) {
-    const message = 'Loading staking info, please wait.';
+    const message = 'Loading staking info, it may take a while.';
     await sendMessage(chatId, message);
 }
 
@@ -462,6 +482,181 @@ async function deleteMessage(chatId, messageId) {
     return successful;
 }
 
+async function sendRewardsReport(chatId, targetStashAddress, rewards) {
+    if (rewards.length == 0) {
+        await sendMessage(chatId, 'No rewards found so far for the given validator/address.');
+        return;
+    }
+    var total = BigInt('0');
+    for (let reward of rewards) {
+        total += BigInt(reward.amount);
+    }
+    // process data - group rewards by month of year
+    const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    const monthlyRewards = {};
+    let max = 0;
+    for (let reward of rewards) {
+        let date = new Date(reward.timestamp);
+        let key = months[date.getMonth()] + ' ' + date.getFullYear().toString().substr(2);
+        if (!monthlyRewards[key]) {
+            monthlyRewards[key] = Number(0);
+        }
+        monthlyRewards[key] += divide(BigInt(reward.amount), BigInt(Math.pow(10, 12)));
+        if (monthlyRewards[key] > max) { max = monthlyRewards[key]; }
+    }
+    // prepare d3
+    const options = {
+        d3Module: d3,
+        selector: '#chart',
+        container: '<div id="container"><div id="chart"></div></div>'
+    };
+    const d3n = new D3Node(options);
+    const margin = {
+        top: 10, right: 10, bottom: 40, left: 0 
+    };
+    const svgWidth = 1200;
+    const svgHeight = 600;
+    const width = 1200 - margin.left - margin.right;
+    const height = 600 - margin.top - margin.bottom;
+    const svg = d3n.createSVG(svgWidth, svgHeight);
+
+    // setup x-axis
+    const xScale = d3.scaleBand().range([0, width - 70]).padding(0.1);
+    xScale.domain(Object.keys(monthlyRewards));
+    // setup y-axis
+    const yScale = d3.scaleLinear().range([height, 20]);
+    yScale.domain([0, max * 1.2]);
+    // set background
+    svg.append('rect')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .style('fill', 'white');
+    // add title
+    svg.append('text')
+        .attr('x', 442)
+        .attr('y', 40)
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '17px')
+        .text('Monthly Staking Rewards for ' + targetStashAddress.slice(0, 4) + '..' + targetStashAddress.slice(-4));
+
+    svg.append("rect")
+        .attr('x', 940)
+        .attr('y', 15)
+        .attr('width', 220)
+        .attr('height', 40)
+        .style('fill', '#00000000')
+        .style('stroke', '#BBBBBB');
+    svg.append('text')
+        .attr('x', 950)
+        .attr('y', 40)
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '17px')
+        .text('Total: ' + 
+            formatAmount(
+                divide(
+                    total, 
+                    BigInt(Math.pow(10, config.tokenDecimals))
+                )
+            )
+        );
+            
+    // append a group element to which the bars and axes will be added to.
+    svg.append('g').attr('transform', `translate(${ 100 }, ${ 100 })`);
+    // appending x-axis
+    svg.append('g')
+        .attr('transform', `translate(50, ${ height })`)
+        .call(
+            d3.axisBottom(xScale)//.tickFormat('ABC')
+        )
+        .selectAll('text')
+        .attr('transform', 'rotate(-65)')
+        .style('text-anchor', 'end')
+        .attr('dx', '-.8em')
+        .attr('dy', '-.0em')
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '10px');
+    // append y-axis
+    svg.append('g')
+        .attr('transform', 'translate(50, 0)')
+        .call(
+            d3.axisLeft(yScale).tickFormat((d) => { return d.toFixed(2); })
+            .ticks(10)
+        )
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '10px')
+        .append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', 130)
+        .attr('x', -20)
+        .attr('dy', '-9.1em')
+        .attr('fill', 'black')
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '12px')
+        .text(`Reward (${config.tokenSymbol})`);
+    // append the bars
+    svg.selectAll('.bar')
+        .data(Object.keys(monthlyRewards))
+        .enter().append('rect')
+        .attr('transform', 'translate(50, 0)')
+        .attr('class', 'bar')
+        .attr('x', (key) => { return xScale(key); })
+        .attr('y', (key) => { return yScale(monthlyRewards[key]); })
+        .attr('width', xScale.bandwidth())
+        .attr('height', (key) => { return height - yScale(monthlyRewards[key]); })
+        .style('fill', '#0f7e9b');
+    
+    svg.selectAll('text.bar')
+        .data(Object.keys(monthlyRewards))
+        .enter().append('text')
+        .attr('class', 'bar')
+        .text(
+            function(key) {
+                const text = formatAmount(monthlyRewards[key]).replace(
+                    ` ${config.tokenSymbol}`,
+                    ''
+                );
+                if (Object.keys(monthlyRewards).length < 23) {
+                    return text;
+                } else {
+                    return text.substr(0, text.length - 2);
+                }
+            }
+        )
+        .attr('font-family', graphFontFamily)
+        .attr('font-size', '13px')
+        .attr('x', function(key) { return xScale(key) + xScale.bandwidth() / 2 + 47; })
+        .attr('y', function(key) { return yScale(monthlyRewards[key]) - 8; })
+        .attr('text-anchor', 'middle')
+    // create SVG
+    const timestamp = new Date().getTime();
+    const svgFileName = targetStashAddress + '_' + timestamp + '.svg';
+    const pngFileName = targetStashAddress + '_' + timestamp + '.png';
+    const svgFilePath = config.tempFileDir + '/' + svgFileName;
+    const pngFilePath = config.tempFileDir + '/' + pngFileName;
+    fs.writeFileSync(
+        svgFilePath,
+        d3n.svgString()
+    );
+    // convert SVG to PNG
+    sharp(svgFilePath)
+        .png()
+        .toFile(pngFilePath)
+        .then(async (info) => {
+            logger.info('SVG to PNG conversion completed', info);
+            // delete SVG
+            fs.unlinkSync(svgFilePath);
+            // send image
+            await sendImage(chatId, pngFilePath, pngFileName);
+            // delete PNG
+            fs.unlinkSync(pngFilePath);
+        })
+        .catch((err) => {
+            logger.error(err);
+        });
+}
+
 module.exports = {
     formatAmount: formatAmount,
     sendMessage: sendMessage,
@@ -490,5 +685,7 @@ module.exports = {
     sendStakingInfo: sendStakingInfo,
     sendReleaseNotes: sendReleaseNotes,
     answerCallbackQuery: answerCallbackQuery,
-    deleteMessage: deleteMessage
+    deleteMessage: deleteMessage,
+    sendAddressSelectionForRewards: sendAddressSelectionForRewards,
+    sendRewardsReport: sendRewardsReport
 };

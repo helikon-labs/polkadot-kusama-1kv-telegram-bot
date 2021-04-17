@@ -16,7 +16,8 @@ const ChatState = {
     REMOVE: 'REMOVE',
     VALIDATOR_INFO: 'VALIDATOR_INFO',
     STAKING_INFO_LOADING: 'STAKING_INFO_LOADING',
-    STAKING_INFO_SELECT_VALIDATOR: 'STAKING_INFO_SELECT_VALIDATOR'
+    STAKING_INFO_SELECT_VALIDATOR: 'STAKING_INFO_SELECT_VALIDATOR',
+    REWARDS_ENTER_ADDRESS: 'REWARDS_ENTER_ADDRESS'
 };
 
 const BlockNotificationPeriod = { // in minutes
@@ -397,6 +398,11 @@ async function setLastFetchedRewardBlock(blockNumber) {
     );
 }
 
+async function getRewards(targetStashAddress) {
+    let rewardCollection = await MongoDB.getRewardCollection();
+    return await rewardCollection.find({targetStashAddress: targetStashAddress}).toArray();
+}
+
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
@@ -433,6 +439,7 @@ module.exports = {
     saveRankChange: saveRankChange,
     getRankHistoryCount: getRankHistoryCount,
     saveRewards: saveRewards,
+    getRewards: getRewards,
     getLastFetchedRewardBlock: getLastFetchedRewardBlock,
     setLastFetchedRewardBlock: setLastFetchedRewardBlock
 };
