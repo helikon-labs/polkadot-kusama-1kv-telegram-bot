@@ -420,12 +420,13 @@ Happy validating 🎉
 async function sendHelp(chatId) {
     const message = dedent(
         `Here's a list of commands to help you receive notifications about your validator node in the [${config.networkName} Thousand Validators Programme](${config.network1KVInfoURL}).
-        
+
         /add - add a new validator
         /remove - remove an existing validator
         /validatorinfo - get information about one of the added validators
+        /rewards - view the monthly rewards chart for a validator or any other address
         /stakinginfo - view self, active and inactive stake amounts
-        /settings - configure the bot (only block authorship notification frequency for the moment)
+        /settings - configure the bot
         /about - version and developer info
         /help - display this message`
     );
