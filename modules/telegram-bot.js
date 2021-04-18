@@ -663,11 +663,6 @@ async function checkUnclaimedEraPayouts(currentEra) {
     const beginEra = currentEra - unclaimedPayoutsEraDepth;
     const validators = await Data.getAllValidators();
     for(let validator of validators) {
-        const period = validator.unclaimedPayoutNotificationPeriod;
-        if ((period == Data.UnclaimedPayoutNotificationPeriod.OFF) 
-                || (currentEra % period != 0)) {
-            continue;
-        }
         let unclaimedEras = [];
         for (let era = beginEra; era < currentEra; era++) {
             let payoutClaimed = await Polkadot.payoutClaimedForAddressForEra(
@@ -679,7 +674,22 @@ async function checkUnclaimedEraPayouts(currentEra) {
             }    
         }
         if (unclaimedEras.length > 0) {
-            await Messaging.sendUnclaimedPayoutWarning(validator, unclaimedEras);
+            const chatIds = [];
+            for (let chatId of validator.chatIds) {
+                const chat = Data.getChatById(chatId);
+                const period = chat.unclaimedPayoutNotificationPeriod;
+                if ((period != Data.UnclaimedPayoutNotificationPeriod.OFF) 
+                        && (currentEra % period == 0)) {
+                    chatIds.push(chatId);
+                }
+            }
+            if (chatIds.length > 0) {
+                await Messaging.sendUnclaimedPayoutWarning(
+                    validator, 
+                    chatIds, 
+                    unclaimedEras
+                );
+            }
         }
     }
 }

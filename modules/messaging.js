@@ -433,10 +433,10 @@ async function sendHelp(chatId) {
     await sendMessage(chatId, message);
 }
 
-async function sendUnclaimedPayoutWarning(validator, eras) {
+async function sendUnclaimedPayoutWarning(validator, chatIds, eras) {
     const erasString = eras.join(', ');
     const message = `💰 *${validator.name}* has unclaimed rewards for ${eras.length > 1 ? 'eras' : 'era'} ${erasString}. Please [claim your payouts](https://polkadot.js.org/apps/#/staking/payout) as soon as possible.`
-    for (let chatId of validator.chatIds) {
+    for (let chatId of chatIds) {
         await sendMessage(chatId, message);
     }
 }
