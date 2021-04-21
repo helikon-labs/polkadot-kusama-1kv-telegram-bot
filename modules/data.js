@@ -127,6 +127,7 @@ async function createChat(chatId) {
         chatId: chatId,
         state: ChatState.IDLE,
         blockNotificationPeriod: BlockNotificationPeriod.HOURLY,
+        unclaimedPayoutNotificationPeriod: UnclaimedPayoutNotificationPeriod.EVERY_ERA,
         version: config.version
     };
     await chatCollection.insertOne(chat);
