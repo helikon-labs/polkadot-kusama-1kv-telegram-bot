@@ -666,10 +666,12 @@ async function checkUnclaimedEraPayouts(currentEra) {
         const chatIds = [];
         for (let chatId of validator.chatIds) {
             const chat = await Data.getChatById(chatId);
-            const period = chat.unclaimedPayoutNotificationPeriod;
-            if ((period != Data.UnclaimedPayoutNotificationPeriod.OFF) 
-                    && (currentEra % period == 0)) {
-                chatIds.push(chatId);
+            if (chat) {
+                const period = chat.unclaimedPayoutNotificationPeriod;
+                if ((period != Data.UnclaimedPayoutNotificationPeriod.OFF) 
+                        && (currentEra % period == 0)) {
+                    chatIds.push(chatId);
+                }
             }
         }
         if (chatIds.length == 0) {
