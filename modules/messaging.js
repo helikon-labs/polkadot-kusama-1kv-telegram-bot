@@ -21,10 +21,9 @@ const graphFontFamily = 'DejaVuSans';
 
 const releaseNotes =
 `- /rewards command to view monthly reward report for one of your validators or *any validator or nominator address*.
+- Faster /stakinginfo command.
 - Turn on/off and configure unclaimed payout notifications in /settings.
-- Bug fixes.
-
-*Warning:* Polkadot bot hasn't been updated yet.`;
+- Bug fixes.`;
 
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
