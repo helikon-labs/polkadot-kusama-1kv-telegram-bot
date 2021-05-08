@@ -406,8 +406,8 @@ async function sendAbout(chatId) {
 *Repo:* [https://github.com/kukabi/polkadot-kusama-1kv-telegram-bot](github.com/kukabi/polkadot-kusama-1kv-telegram-bot)
 *Matrix:* \`kukabi@helikon:matrix.org\`
 
-*Validator & Stash Address:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
-*1KV Validator Name:* ⛰  Helikon Labs 001  ⛰
+*Kusama Validator & Stash:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
+*Kusama 1KV Validator Name:* ⛰  Helikon Labs 001  ⛰
 
 Feel free to tip or nominate my stash/validator:)
 Please submit issues to the [GitHub repo](github.com/kukabi/polkadot-kusama-1kv-telegram-bot) for any bugs or ideas.
@@ -508,7 +508,7 @@ async function sendRewardsReport(chatId, targetStashAddress, rewards) {
         if (!monthlyRewards[key]) {
             monthlyRewards[key] = Number(0);
         }
-        monthlyRewards[key] += divide(BigInt(reward.amount), BigInt(Math.pow(10, 12)));
+        monthlyRewards[key] += divide(BigInt(reward.amount), BigInt(Math.pow(10, config.tokenDecimals)));
         if (monthlyRewards[key] > max) { max = monthlyRewards[key]; }
     }
     // prepare d3
