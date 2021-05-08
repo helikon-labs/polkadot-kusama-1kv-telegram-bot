@@ -404,7 +404,7 @@ async function sendAbout(chatId) {
 *Developer:* Kutsal Kaan Bilgin
 *Mail:* kutsal@helikon.tech
 *Repo:* [https://github.com/kukabi/polkadot-kusama-1kv-telegram-bot](github.com/kukabi/polkadot-kusama-1kv-telegram-bot)
-*Matrix:* \`kukabi@helikon:matrix.org\`
+*Matrix:* \`@helikon:matrix.org\`
 
 *Kusama Validator & Stash:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
 *Kusama 1KV Validator Name:* ⛰  Helikon Labs 001  ⛰

@@ -632,8 +632,8 @@ async function onFinalizedBlock(blockNumber, blockHash, blockAuthor) {
     if (validator) {
         processNewBlockByValidator(blockNumber, validator)
     }
-    if (blockNumber % 150 == 0) { // ~ every 15 minutes
-        processRewardsUpToBlock(blockNumber - 50);
+    if (blockNumber % 100 == 0) { // ~ every 10 minutes
+        processRewardsUpToBlock(blockNumber - 25);
     }
 }
 
