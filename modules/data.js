@@ -161,7 +161,8 @@ async function fetchValidator(stashAddress) {
     if (response.status == 200) {
         const w3fValidator = await response.json();
         w3fValidator.isActiveInSet = await Polkadot.getIsActiveInSet(stashAddress);
-        w3fValidator.commission = await Polkadot.getCommission(stashAddress);
+        let commission = await Polkadot.getCommission(stashAddress);
+        w3fValidator.commission = `${commission}`;
         w3fValidator.sessionKeys = await Polkadot.getSessionKeys(stashAddress);
         return {
             validator: w3fValidator,

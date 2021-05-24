@@ -510,6 +510,12 @@ async function updateValidator(validator) {
             }
             updateCount++;
         }
+        // compare commission
+        if (validator.commission != w3fValidator.commission) {
+            updates.commission = w3fValidator.commission;
+            message += `\n💵 new commission rate is ${w3fValidator.commission}`;
+            updateCount++;
+        }
         // compare session keys
         if (validator.sessionKeys != w3fValidator.sessionKeys) {
             updates.sessionKeys = w3fValidator.sessionKeys;
