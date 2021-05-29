@@ -19,11 +19,13 @@ const Data = require('./data');
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const graphFontFamily = 'DejaVuSans';
 
-const releaseNotes =
+const releaseNotes = '';
+/*
 `- /rewards command to view monthly reward report for one of your validators or *any validator or nominator address*.
 - Faster /stakinginfo command.
 - Turn on/off and configure unclaimed payout notifications in /settings.
 - Bug fixes.`;
+*/
 
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
@@ -256,19 +258,21 @@ async function sendSettings(chat, messageId) {
 async function sendValidatorInfo(chatId, validator) {
     // name
     let validatorInfo = markdownEscape(validator.name);
-    
     // stash
     validatorInfo += `\n📍 Address ${validator.stashAddress.slice(0, 8)}..${validator.stashAddress.slice(-8)}`;
-
     // rank
     validatorInfo += `\n📊 Has rank ${validator.rank}`;
     // 1KV validity
-    if (!validator.invalidityReasons || validator.invalidityReasons.trim().length == 0) {
+    if (validator.isValid) {
         validatorInfo += `\n✅ Is valid 1KV validator`;
     } else {
-        validatorInfo += `\n❌ Is not valid for 1KV: ${validator.invalidityReasons}`;
+        validatorInfo += `\n❌ Is not valid for 1KV:`;
+        for (let validityItem of validator.validityItems) {
+            if (!validityItem.valid) {
+                validatorInfo += `\n- ${validityItem.details}`
+            }
+        }
     }
-    
     // online / offline
     if (validator.onlineSince > 0) {
         const onlineSince = moment.utc(new Date(validator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss');
@@ -279,27 +283,21 @@ async function sendValidatorInfo(chatId, validator) {
     }
     // active set
     if (validator.isActiveInSet) {
-        validatorInfo += `\n🚀 Is currently *in* the active validator set`;
+        validatorInfo += `\n🚀 Is an active validator`;
     } else {
-        validatorInfo += `\n⏸ Is *not* currently in the active validator set`;
+        validatorInfo += `\n⏸ Is not an active validator`;
     }
     // session keys
     if (validator.sessionKeys) {
         const sessionKeys = validator.sessionKeys.slice(0, 8) + '..' + validator.sessionKeys.slice(-8);
         validatorInfo += `\n🔑 Session keys: ${sessionKeys}`;
-        // return 
     }
     // commission
     if (validator.commission) {
-        validatorInfo += `\n💵 Commission rate is ${validator.commission}`;
+        validatorInfo += `\n💵 Commission rate is ${markdownEscape(validator.commission)}`;
     }
-    
     // version
-    if (validator.updated) {
-        validatorInfo += `\n🆙 Up to date with version \`${validator.version}\``;
-    } else {
-        validatorInfo += `\n❗ Out of date with version \`${validator.version}\``;
-    }
+    validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
     // first discovered
     const firstDiscovered = moment.utc(new Date(validator.discoveredAt)).format('MMMM Do YYYY, HH:mm:ss');
     validatorInfo += `\n📡 First discovered on ${firstDiscovered} UTC`;

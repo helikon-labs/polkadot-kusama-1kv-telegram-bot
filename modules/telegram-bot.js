@@ -432,25 +432,21 @@ async function updateValidator(validator) {
         logger.info(`Fetched ${validator.name}.`);
         const w3fValidator = validatorFetchResult.validator;
         const updates = {};
-        let updateCount = 0;
-        let message = markdownEscape(validator.name);
+        let messageComponents = [];
         // check name
         if (validator.name != w3fValidator.name) {
             updates.name = w3fValidator.name;
-            message += '\n🏷 has a new name ' + markdownEscape(updates.name);
-            updateCount++;
+            messageComponents.push('\n🏷 has a new name ' + markdownEscape(updates.name));
         }
         // compare rank
         if (validator.rank < w3fValidator.rank) {
             updates.rank = w3fValidator.rank;
-            message += '\n📈 rank has increased from ' + validator.rank + ' to ' + w3fValidator.rank;
+            messageComponents.push('\n📈 rank has increased from ' + validator.rank + ' to ' + w3fValidator.rank);
             await Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
-            updateCount++;
         } else if (validator.rank > w3fValidator.rank) {
             updates.rank = w3fValidator.rank;
-            message += '\n📉 rank has decreased from ' + validator.rank + ' to ' + w3fValidator.rank;
+            messageComponents.push('\n📉 rank has decreased from ' + validator.rank + ' to ' + w3fValidator.rank);
             Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
-            updateCount++;
         }
         // save rank if no record exists
         const rankHistoryCount = await Data.getRankHistoryCount(validator.stashAddress);
@@ -458,20 +454,31 @@ async function updateValidator(validator) {
             await Data.saveRankChange(validator.stashAddress, w3fValidator.rank);
         }
         // compare 1KV validity
-        if (validator.invalidityReasons && validator.invalidityReasons.length > 0 
-            && (!w3fValidator.invalidityReasons || w3fValidator.invalidityReasons.trim().length == 0)) {
+        if (!validator.isValid && w3fValidator.isValid) {
+            updates.isValid = w3fValidator.isValid;
+            updates.validityItems = w3fValidator.validityItems;
             updates.invalidityReasons = w3fValidator.invalidityReasons;
-            message += '\n' + '✅ is now a valid 1KV validator';
-            updateCount++;
-        } else if ((!validator.invalidityReasons || validator.invalidityReasons.trim().length == 0)
-            && w3fValidator.invalidityReasons && w3fValidator.invalidityReasons.length > 0 ) {
+            messageComponents.push('\n' + '✅ is now a valid 1KV validator');
+        } else if (validator.isValid && !w3fValidator.isValid) {
             // send pending messages
             for (let chatId of validator.chatIds) {
                 sendPendingNotificationsForChat(chatId);
             }
+            updates.isValid = w3fValidator.isValid;
+            updates.validityItems = w3fValidator.validityItems;
             updates.invalidityReasons = w3fValidator.invalidityReasons;
-            message += '\n' + '❌ has become an invalid 1KV validator: ' + w3fValidator.invalidityReasons;
-            updateCount++;
+            messageComponents.push('\n' + '❌ has become an invalid 1KV validator:');
+            for (let validityItem of w3fValidator.validityItems) {
+                if (!validityItem.valid) {
+                    messageComponents.push(`\n- ${validityItem.details}`);
+                }
+            }
+        } else if (validator.invalidityReasons != w3fValidator.invalidityReasons) {
+            updates.invalidityReasons = w3fValidator.invalidityReasons;
+        }
+        // check validity items
+        if (!validator.hasOwnProperty('validityItems')) {
+            updates.validityItems = w3fValidator.validityItems;
         }
         // compare online/offline
         if (validator.onlineSince != 0 && w3fValidator.onlineSince == 0) {
@@ -482,15 +489,13 @@ async function updateValidator(validator) {
             updates.onlineSince = w3fValidator.onlineSince;
             updates.offlineSince = w3fValidator.offlineSince;
             updates.offlineAccumulated = w3fValidator.offlineAccumulated;
-            message += '\n🔴 went offline on ' + moment.utc(new Date(w3fValidator.offlineSince)).format('MMMM Do YYYY, HH:mm:ss');
-            updateCount++;
+            messageComponents.push('\n🔴 went offline on ' + moment.utc(new Date(w3fValidator.offlineSince)).format('MMMM Do YYYY, HH:mm:ss'));
 
         } else if (validator.onlineSince == 0 && w3fValidator.onlineSince != 0) {
             updates.onlineSince = w3fValidator.onlineSince;
             updates.offlineSince = w3fValidator.offlineSince;
             updates.offlineAccumulated = w3fValidator.offlineAccumulated;
-            message += '\n🟢 came back online on ' + moment.utc(new Date(w3fValidator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss');
-            updateCount++;
+            messageComponents.push('\n🟢 came back online on ' + moment.utc(new Date(w3fValidator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss'));
         }
         // compare is active in set
         if (validator.isActiveInSet != w3fValidator.isActiveInSet) {
@@ -498,51 +503,46 @@ async function updateValidator(validator) {
             if (w3fValidator.isActiveInSet) {
                 const totalActiveStakeAmount = 
                     (await Data.getActiveStakeInfoForCurrentEra(validator.stashAddress)).totalStake;
-                message += '\n' + '🚀 is now *in* the active validator set';
-                message += '\n' + `Total active stake *${Messaging.formatAmount(totalActiveStakeAmount)}*`;
+                messageComponents.push('\n' + '🚀 is now an active validator');
+                messageComponents.push('\n' + `Total active stake *${Messaging.formatAmount(totalActiveStakeAmount)}*`);
                 // fetch active stake
             } else {
                 // send pending messages
                 for (let chatId of validator.chatIds) {
                     sendPendingNotificationsForChat(chatId);
                 }
-                message += '\n' + '⏸ is *not* anymore in the active validator set';
+                messageComponents.push('\n' + '⏸ is not anymore an active validator');
             }
-            updateCount++;
         }
         // compare commission
         if (validator.commission != w3fValidator.commission) {
             updates.commission = w3fValidator.commission;
-            message += `\n💵 new commission rate is ${w3fValidator.commission}`;
-            updateCount++;
+            messageComponents.push(`\n💵 new commission rate is ${w3fValidator.commission}`);
         }
         // compare session keys
         if (validator.sessionKeys != w3fValidator.sessionKeys) {
             updates.sessionKeys = w3fValidator.sessionKeys;
-            message += '\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 8) + '..' + w3fValidator.sessionKeys.slice(-8) + '`';
-            updateCount++;
+            messageComponents.push('\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 8) + '..' + w3fValidator.sessionKeys.slice(-8) + '`');
         }
-        // compare updated
-        if (validator.updated != w3fValidator.updated) {
-            updates.updated = w3fValidator.updated;
+        // update version
+        if (validator.version != w3fValidator.version) {
             updates.version = w3fValidator.version;
-            if (w3fValidator.updated) {
-                message += '\n' + '🆙 is now up-to-date with version `' + validator.version + '`';
-            } else {
-                message += '\n' + '❗ got out of date with version `' + validator.version + '`.';
-            }
-            updateCount++;
-        } else if (validator.version != w3fValidator.version) {
-            await Data.updateValidatorVersion(validator, w3fValidator.version);
+            messageComponents.push(`\n🧬 is now running version ${w3fValidator.version}`);
         }
+        // process updates
+        let updateCount = Object.keys(updates).length;
         if (updateCount > 0) {
             logger.info(`Updating [${validator.stashAddress}] with ${updateCount} properties.`);
             // persist changes
             const result = await Data.updateValidator(validator, updates);
             if (result.result.ok && result.result.n == 1) {
-                logger.info(`${validator.name} database update successful. Send message(s).`);
-                for (let chatId of validator.chatIds) {
-                    await Messaging.sendMessage(chatId, message);
+                logger.info(`${validator.name} database update successful.`);
+                if (messageComponents.length > 0) {
+                    logger.info(`Send update message for [${validator.stashAddress}].`);
+                    let message = markdownEscape(validator.name) + messageComponents.join("");
+                    for (let chatId of validator.chatIds) {
+                        await Messaging.sendMessage(chatId, message);
+                    }
                 }
             } else {
                 logger.error(`${validator.name} database update has failed.`);
@@ -559,7 +559,7 @@ async function updateValidator(validator) {
 async function updateValidators() {
     logger.info(`🔄  Update 1KV validators.`);
     const validators = await Data.getAllValidators();
-    for(let validator of validators) {
+    for (let validator of validators) {
         updateValidator(validator);
     }
 }
@@ -668,7 +668,7 @@ async function checkUnclaimedEraPayouts(currentEra) {
     const unclaimedPayoutsEraDepth = fourDaysMins / config.eraLengthMins;
     const beginEra = currentEra - unclaimedPayoutsEraDepth;
     const validators = await Data.getAllValidators();
-    for(let validator of validators) {
+    for (let validator of validators) {
         const chatIds = [];
         for (let chatId of validator.chatIds) {
             const chat = await Data.getChatById(chatId);
@@ -721,11 +721,13 @@ const start = async () => {
         onFinalizedBlock,
         onEraChange
     );
-    // send release notes
+    // check chat versions and send release notes if necessary
     const allChats = await Data.getAllChats();
     for (let chat of allChats) {
         if (!chat.version || chat.version != config.version) {
-            await Messaging.sendReleaseNotes(chat.chatId);
+            if (config.sendReleaseNotes) {
+                await Messaging.sendReleaseNotes(chat.chatId);
+            }
             await Data.setChatVersion(chat.chatId, config.version);
         }
     }

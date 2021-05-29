@@ -77,6 +77,17 @@ async function migrate(version) {
                 );
             }
         }
+    } else if (version == '1.3.1') {
+        logger.info('Migrating for version 1.3.1.');
+        const validators = await getAllValidators();
+        for (let validator of validators) {
+            if (!validator.hasOwnProperty('isValid')) {
+                await updateValidatorValidity(
+                    validator,
+                    validator.invalidityReasons.trim().length == 0
+                );
+            }
+        }
     }
 }
 
@@ -160,6 +171,11 @@ async function fetchValidator(stashAddress) {
     clearTimeout(timeoutId);
     if (response.status == 200) {
         const w3fValidator = await response.json();
+        w3fValidator.validityItems = w3fValidator.invalidity;
+        delete w3fValidator.invalidity;
+        w3fValidator.isValid = w3fValidator.validityItems.reduce(
+            (sum, next) => sum && next.valid, true
+        );
         w3fValidator.isActiveInSet = await Polkadot.getIsActiveInSet(stashAddress);
         let commission = await Polkadot.getCommission(stashAddress);
         w3fValidator.commission = `${commission}`;
@@ -190,6 +206,14 @@ async function updateValidatorVersion(validator, version) {
     );
 }
 
+async function updateValidatorValidity(validator, isValid) {
+    let validatorCollection = await MongoDB.getValidatorCollection();
+    return await validatorCollection.updateOne(
+        { stashAddress: validator.stashAddress },
+        { $set: { isValid: isValid } }
+    );
+}
+
 async function persistValidator(w3fValidator, chatId) {
     const validator = {
         name: w3fValidator.name,
@@ -201,9 +225,10 @@ async function persistValidator(w3fValidator, chatId) {
         onlineSince: w3fValidator.onlineSince,
         offlineSince: w3fValidator.offlineSince,
         offlineAccumulated: w3fValidator.offlineAccumulated,
-        updated: w3fValidator.updated,
         version: w3fValidator.version,
         faults: w3fValidator.faults,
+        isValid: w3fValidator.isValid,
+        validityItems: w3fValidator.validityItems,
         invalidityReasons: w3fValidator.invalidityReasons,
         isActiveInSet: w3fValidator.isActiveInSet,
         commission: w3fValidator.commission,
