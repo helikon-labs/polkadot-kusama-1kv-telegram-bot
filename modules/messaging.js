@@ -19,13 +19,15 @@ const Data = require('./data');
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const graphFontFamily = 'DejaVuSans';
 
-const releaseNotes =
+const releaseNotes = '';
+/*
 `- New notifications from chain data:
     - ⭐️ New nominations
     - 🥶 Chilling events
     - 🆘 Offline offences
 - Updated two-level /settings menu
 - /settings for the new notifications`;
+*/
 
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
