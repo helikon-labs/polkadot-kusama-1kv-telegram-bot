@@ -88,6 +88,19 @@ async function migrate(version) {
                 );
             }
         }
+    } else if (version == '1.4.0') {
+        const chats = await getAllChats();
+        for (let chat of chats) {
+            if (typeof chat.sendNewNominationNotifications == 'undefined') {
+                await setChatSendNewNominationNotifications(chat.chatId, true);
+            }
+            if (typeof chat.sendChillingEventNotifications == 'undefined') {
+                await setChatSendChillingEventNotifications(chat.chatId, true);
+            }
+            if (typeof chat.sendOfflineEventNotifications == 'undefined') {
+                await setChatSendOfflineEventNotifications(chat.chatId, true);
+            }
+        }
     }
 }
 
@@ -139,6 +152,9 @@ async function createChat(chatId) {
         state: ChatState.IDLE,
         blockNotificationPeriod: BlockNotificationPeriod.HOURLY,
         unclaimedPayoutNotificationPeriod: UnclaimedPayoutNotificationPeriod.EVERY_ERA,
+        sendNewNominationNotifications: true,
+        sendChillingEventNotifications: true,
+        sendOfflineEventNotifications: true,
         version: config.version
     };
     await chatCollection.insertOne(chat);
@@ -180,6 +196,7 @@ async function fetchValidator(stashAddress) {
         let commission = await Polkadot.getCommission(stashAddress);
         w3fValidator.commission = `${commission}`;
         w3fValidator.sessionKeys = await Polkadot.getSessionKeys(stashAddress);
+        w3fValidator.controllerAddress = await Polkadot.getControllerAddress(stashAddress);
         return {
             validator: w3fValidator,
             status: response.status
@@ -219,6 +236,7 @@ async function persistValidator(w3fValidator, chatId) {
         name: w3fValidator.name,
         stashAddress: w3fValidator.stash,
         kusamaStashAddress: w3fValidator.kusamaStash,
+        controllerAddress: w3fValidator.controllerAddress,
         rank: w3fValidator.rank,
         discoveredAt: w3fValidator.discoveredAt,
         nominatedAt: w3fValidator.nominatedAt,
@@ -273,6 +291,11 @@ async function getValidatorByName(name) {
 async function getValidatorByStashAddress(stashAddress) {
     let validatorCollection = await MongoDB.getValidatorCollection();
     return await validatorCollection.findOne({ stashAddress: stashAddress });
+}
+
+async function getValidatorByControllerAddress(controllerAddress) {
+    let validatorCollection = await MongoDB.getValidatorCollection();
+    return await validatorCollection.findOne({ controllerAddress: controllerAddress });
 }
 
 async function updateValidatorChatIds(validator, chatIds) {
@@ -399,6 +422,33 @@ async function setChatUnclaimedPayoutNotificationPeriod(chatId, unclaimedPayoutN
     return result.result.ok && result.result.n == 1;
 }
 
+async function setChatSendNewNominationNotifications(chatId, sendNewNominationNotifications) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { sendNewNominationNotifications: sendNewNominationNotifications } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
+async function setChatSendChillingEventNotifications(chatId, sendChillingEventNotifications) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { sendChillingEventNotifications: sendChillingEventNotifications } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
+async function setChatSendOfflineEventNotifications(chatId, sendOfflineEventNotifications) {
+    let chatCollection = await MongoDB.getChatCollection();
+    const result = await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { sendOfflineEventNotifications: sendOfflineEventNotifications } }
+    );
+    return result.result.ok && result.result.n == 1;
+}
+
 async function getActiveStakeInfoForCurrentEra(address) {
     const currentEra = parseInt(await Polkadot.getCurrentEra());
     return await Polkadot.getActiveStakesForEra(address, currentEra);
@@ -470,6 +520,7 @@ module.exports = {
     removeValidator: removeValidator,
     getValidatorByName: getValidatorByName,
     getValidatorByStashAddress: getValidatorByStashAddress,
+    getValidatorByControllerAddress: getValidatorByControllerAddress,
     updateValidatorChatIds: updateValidatorChatIds,
     updateValidatorVersion: updateValidatorVersion,
     setTelegramUpdateOffset: setTelegramUpdateOffset,
@@ -490,6 +541,9 @@ module.exports = {
     setChatLastSettingsMessageId: setChatLastSettingsMessageId,
     setChatBlockNotificationPeriod: setChatBlockNotificationPeriod,
     setChatUnclaimedPayoutNotificationPeriod: setChatUnclaimedPayoutNotificationPeriod,
+    setChatSendNewNominationNotifications: setChatSendNewNominationNotifications,
+    setChatSendChillingEventNotifications: setChatSendChillingEventNotifications,
+    setChatSendOfflineEventNotifications: setChatSendOfflineEventNotifications,
     getStakingInfo: getStakingInfo,
     getActiveStakeInfoForCurrentEra: getActiveStakeInfoForCurrentEra,
     saveRankChange: saveRankChange,

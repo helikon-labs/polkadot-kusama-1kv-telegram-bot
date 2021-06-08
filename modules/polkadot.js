@@ -41,9 +41,13 @@ async function getCurrentEra() {
     return await api.query.staking.currentEra();
 }
 
+async function getControllerAddress(stashAddress) {
+    return (await api.query.staking.bonded(stashAddress)).toString();
+}
+
 async function payoutClaimedForAddressForEra(stashAddress, era) {
-    const controllerAddress = await api.query.staking.bonded(stashAddress);
-    const controllerLedger = await api.query.staking.ledger(controllerAddress.toString());
+    const controllerAddress = await getControllerAddress(stashAddress);
+    const controllerLedger = await api.query.staking.ledger(controllerAddress);
     const claimedEras = controllerLedger.toHuman().claimedRewards.map(
         x => parseInt(x.replace(',', ''))
     );
@@ -60,12 +64,8 @@ async function payoutClaimedForAddressForEra(stashAddress, era) {
     return false;
 }
 
-async function getController(stashAddress) {
-    return (await api.query.staking.bonded(stashAddress)).toString();
-}
-
 async function getSelfStake(address) {
-    const controller = await getController(address);
+    const controller = await getControllerAddress(address);
     const ledger = (await api.query.staking.ledger(controller)).toJSON();
     const selfStake = divide(
         BigInt((ledger ? ledger.active : 0)),
@@ -170,6 +170,118 @@ async function getRewardsInBlock(blockNumber) {
     return rewards;
 }
 
+async function getNominationsInBlock(blockNumber) {
+    logger.info(`Get nominations block ${blockNumber}.`);
+    const blockHash = await api.rpc.chain.getBlockHash(blockNumber);
+    const block = await api.rpc.chain.getBlock(blockHash);
+    const allEvents = await api.query.system.events.at(blockHash);
+    const nominations = [];
+    for (let index = 0; index < block.block.extrinsics.length; index++) {
+        let extrinsic = block.block.extrinsics[index];
+        if (!extrinsic.toHuman().isSigned) {
+            continue;
+        }
+        let method = extrinsic.toHuman().method;
+        if (method.section == 'staking' && method.method == 'nominate') {
+            let nominees = extrinsic.toHuman().method.args;
+            let nominator = extrinsic.toHuman().signer.Id;
+            const nominatorLedger = await api.query.staking.ledger(nominator);
+            const activeStake = nominatorLedger.toJSON().active;
+            const validatorAddresses = [];
+            for (let nominee of nominees[0]) {
+                validatorAddresses.push(nominee.Id);
+            }
+            let filteredEvents =
+                allEvents
+                    // filter the specific events based on the phase and then the
+                    // index of our extrinsic in the block
+                    .filter(({ phase }) =>
+                        phase.isApplyExtrinsic &&
+                        phase.asApplyExtrinsic.eq(index)
+                    );
+            for (let event of filteredEvents) {
+                if (api.events.system.ExtrinsicSuccess.is(event.event)) {
+                    nominations.push(
+                        {
+                            nominator: nominator,
+                            activeStake: divide(
+                                BigInt(activeStake),
+                                BigInt(Math.pow(10, config.tokenDecimals))
+                            ),
+                            validatorAddresses: validatorAddresses,
+                            blockNumber: blockNumber,
+                            extrinsicIndex: index
+                        }
+                    );
+                    break;
+                }
+            }
+        }
+    }
+    return nominations;
+}
+
+async function getChillingsInBlock(blockNumber) {
+    logger.info(`Get chillings block ${blockNumber}.`);
+    const blockHash = await api.rpc.chain.getBlockHash(blockNumber);
+    const block = await api.rpc.chain.getBlock(blockHash);
+    const allEvents = await api.query.system.events.at(blockHash);
+    const chillings = [];
+    for (let index = 0; index < block.block.extrinsics.length; index++) {
+        let extrinsic = block.block.extrinsics[index];
+        if (!extrinsic.toHuman().isSigned) {
+            continue;
+        }
+        let method = extrinsic.toHuman().method;
+        if (method.section == 'staking' && method.method == 'chill') {
+            let controllerAddress = extrinsic.toHuman().signer.Id;
+            let filteredEvents =
+                allEvents
+                    // filter the specific events based on the phase and then the
+                    // index of our extrinsic in the block
+                    .filter(({ phase }) =>
+                        phase.isApplyExtrinsic &&
+                        phase.asApplyExtrinsic.eq(index)
+                    ); 
+            for (let event of filteredEvents) {
+                if (api.events.system.ExtrinsicSuccess.is(event.event)) {
+                    chillings.push(
+                        {
+                            controllerAddress: controllerAddress,
+                            blockNumber: blockNumber,
+                            extrinsicIndex: index
+                        }
+                    );
+                    break;
+                }
+            }
+        }
+    }
+    return chillings;
+}
+
+async function getOfflineEventInBlock(blockNumber) {
+    logger.info(`Get offline events in block ${blockNumber}.`);
+    const blockHash = await api.rpc.chain.getBlockHash(blockNumber);
+    const allEvents = await api.query.system.events.at(blockHash);
+    const validatorAddresses = [];
+    for (let i = 0; i < allEvents.length; i++) {
+        const { event } = allEvents[i];
+        if (event.section.toLowerCase() == "imonline"
+            && event.method.toLowerCase() == "someoffline") {
+            for (let validatorData of event.toJSON().data[0]) {
+                validatorAddresses.push(validatorData[0]);
+            }
+            return {
+                validatorAddresses: validatorAddresses,
+                blockNumber: blockNumber,
+                eventIndex: i
+            };
+        }
+    }
+    return null;
+}
+
 async function checkEraChange() {
     const currentEra = await getCurrentEra();
     if (currentEra > lastEra) {
@@ -219,6 +331,7 @@ module.exports = {
     isValidAddress: isValidAddress,
     connectPolkadot: connectPolkadot,
     disconnectPolkadot: disconnectPolkadot,
+    getControllerAddress: getControllerAddress,
     getIsActiveInSet: getIsActiveInSet,
     getCommission: getCommission,
     getSessionKeys: getSessionKeys,
@@ -227,5 +340,8 @@ module.exports = {
     getSelfStake: getSelfStake,
     getActiveStakesForEra: getActiveStakesForEra,
     getInactiveNominations: getInactiveNominations,
-    getRewardsInBlock: getRewardsInBlock
+    getRewardsInBlock: getRewardsInBlock,
+    getNominationsInBlock: getNominationsInBlock,
+    getChillingsInBlock: getChillingsInBlock,
+    getOfflineEventInBlock: getOfflineEventInBlock
 }

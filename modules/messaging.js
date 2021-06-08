@@ -19,13 +19,13 @@ const Data = require('./data');
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const graphFontFamily = 'DejaVuSans';
 
-const releaseNotes = '';
-/*
-`- /rewards command to view monthly reward report for one of your validators or *any validator or nominator address*.
-- Faster /stakinginfo command.
-- Turn on/off and configure unclaimed payout notifications in /settings.
-- Bug fixes.`;
-*/
+const releaseNotes =
+`- New notifications from chain data:
+    - ⭐️ New nominations
+    - 🥶 Chilling events
+    - 🆘 Offline offences
+- Updated two-level /settings menu
+- /settings for the new notifications`;
 
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
@@ -230,20 +230,50 @@ async function sendUnexpectedError(chatId) {
     await sendMessage(chatId, message);
 }
 
-async function sendSettings(chat, messageId) {
+async function sendSettingsMenu(chat, messageId) {
     const keyboard = [
-        [{ text: '- Block Authorship Notifications -'.toUpperCase(), callback_data: 'no_op'}],
-        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"blockNotificationPeriod": -1}'}],
+        [{ text: '- NOTIFICATION SETTINGS -', callback_data: 'no_op' }],
+        [{ text: 'Block Authorship ->', callback_data: `{"goToSubMenu": "blockAuthorshipNotificationSettings"}` }],
+        [{ text: 'Unclaimed Payouts ->', callback_data: `{"goToSubMenu": "unclaimedPayoutNotificationSettings"}` }],
+        [{ text: (chat.sendNewNominationNotifications ? '🟢' : '⚪') + ' New Nominations', callback_data: '{"sendNewNominationNotifications": ' + (chat.sendNewNominationNotifications ? 'false' : 'true') + '}'}],
+        [{ text: (chat.sendChillingEventNotifications ? '🟢' : '⚪') + ' Chilling Events', callback_data: '{"sendChillingEventNotifications": ' + (chat.sendChillingEventNotifications ? 'false' : 'true') + '}'}],
+        [{ text: (chat.sendOfflineEventNotifications ? '🟢' : '⚪') + ' Offline Offence', callback_data: '{"sendOfflineEventNotifications": ' + (chat.sendOfflineEventNotifications ? 'false' : 'true') + '}'}],
+        [{ text: '-> Close <-', callback_data: '{"closeSettings": true}'}]
+    ]
+    const replyMarkup = {
+        inline_keyboard: keyboard
+    };
+    if (messageId) {
+        return await updateMessage(chat.chatId, messageId, 'Please configure below.', replyMarkup);
+    } else {
+        return await sendMessage(chat.chatId, 'Please configure below.', replyMarkup);
+    }
+}
+
+async function sendBlockAuthorshipNotificationSettings(chat, messageId) {
+    const keyboard = [
+        [{ text: '- BLOCK AUTHORSHIP NOTIFICATIONS -', callback_data: 'no_op'}],
+        [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.OFF ? '🔴' : '⚪') + ' Off', callback_data: '{"blockNotificationPeriod": -1}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE ? '🟢' : '⚪') + ' Immediately', callback_data: '{"blockNotificationPeriod": 0}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HOURLY ? '🟢' : '⚪️') + ' Hourly', callback_data: '{"blockNotificationPeriod": 60}'}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.HALF_ERA ? '🟢' : '⚪️') + ` End of every half era (${config.eraLengthMins / (2 * 60)} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins / 2}}`}],
         [{ text: (chat.blockNotificationPeriod == Data.BlockNotificationPeriod.ERA_END ? '🟢' : '⚪️') + ` End of every era (${config.eraLengthMins / 60} hours)`, callback_data: `{"blockNotificationPeriod": ${config.eraLengthMins}}`}],
-        [{ text: '- Unclaimed Payout Notifications -'.toUpperCase(), callback_data: 'no_op'}],
-        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.OFF ? '🟢' : '⚪') + ' Off', callback_data: '{"unclaimedPayoutNotificationPeriod": -1}'}],
+        [{ text: '<- Back', callback_data: '{"backToSettingsMenu": true}'}]
+    ]
+    const replyMarkup = {
+        inline_keyboard: keyboard
+    };
+    return await updateMessage(chat.chatId, messageId, 'Please configure below.', replyMarkup);
+}
+
+async function sendUnclaimedPayoutNotificationSettings(chat, messageId) {
+    const keyboard = [
+        [{ text: '- UNCLAIMED PAYOUT NOTIFICATIONS -', callback_data: 'no_op'}],
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.OFF ? '🔴' : '⚪') + ' Off', callback_data: '{"unclaimedPayoutNotificationPeriod": -1}'}],
         [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.EVERY_ERA ? '🟢' : '⚪') + ' Every era', callback_data: '{"unclaimedPayoutNotificationPeriod": 1}'}],
         [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.TWO_ERAS ? '🟢' : '⚪️') + ' Every 2 eras', callback_data: '{"unclaimedPayoutNotificationPeriod": 2}'}],
-        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.FOUR_ERAS ? '🟢' : '⚪️') + ` Every 4 eras`, callback_data: '{"unclaimedPayoutNotificationPeriod": 4}'}],
-        [{ text: '-> Tap Here to Close <-', callback_data: '{"closeSettings": true}'}]
+        [{ text: (chat.unclaimedPayoutNotificationPeriod == Data.UnclaimedPayoutNotificationPeriod.FOUR_ERAS ? '🟢' : '⚪️') + ` Every 4 eras`, callback_data: '{"unclaimedPayoutNotificationPeriod": 4}' }],
+        [{ text: '<- Back', callback_data: '{"backToSettingsMenu": true}'}]
     ]
     const replyMarkup = {
         inline_keyboard: keyboard
@@ -287,6 +317,10 @@ async function sendValidatorInfo(chatId, validator) {
     } else {
         validatorInfo += `\n⏸ Is not an active validator`;
     }
+    // controller
+    if (validator.controllerAddress) {
+        validatorInfo += `\n⚓️ Controller: [${validator.controllerAddress.slice(0, 6)}..${validator.controllerAddress.slice(-6)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${validator.controllerAddress})`
+    }
     // session keys
     if (validator.sessionKeys) {
         const sessionKeys = validator.sessionKeys.slice(0, 8) + '..' + validator.sessionKeys.slice(-8);
@@ -294,7 +328,7 @@ async function sendValidatorInfo(chatId, validator) {
     }
     // commission
     if (validator.commission) {
-        validatorInfo += `\n💵 Commission rate is ${markdownEscape(validator.commission)}`;
+        validatorInfo += `\n💵 ${markdownEscape(validator.commission)} commission`;
     }
     // version
     validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
@@ -339,6 +373,38 @@ async function sendBlocksAuthored(chatId, validator, blockNumbers) {
         message = `${validator.name} has authored ${blockNumbers.length} blocks.`;
     }
     return await sendMessage(chatId, message);
+}
+
+async function sendNewNomination(chatId, validator, nomination) {
+    let message = dedent(
+        `⭐️ ${validator.name} received a new nomination!
+        *Nominator:* [${nomination.nominator.slice(0, 6) + '..' + nomination.nominator.slice(-6)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${nomination.nominator})
+        *Stake:* ${formatAmount(nomination.activeStake)}
+        *Nominee Count:* ${nomination.validatorAddresses.length}
+        *Extrinsic:* [link](https://${config.networkName.toLowerCase()}.subscan.io/extrinsic/${nomination.blockNumber}-${nomination.extrinsicIndex})
+        `
+    );
+    await sendMessage(chatId, message);
+}
+
+async function sendChilling(chatId, validator, chilling) {
+    let message = dedent(
+        `🥶 ${validator.name} got chilled!
+        Controller [${chilling.controllerAddress.slice(0, 4)}..${chilling.controllerAddress.slice(-4)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${chilling.controllerAddress}) declared no desire to validate.
+        Effects will be felt at the beginning of the next era.
+        *Extrinsic:* [link](https://${config.networkName.toLowerCase()}.subscan.io/extrinsic/${chilling.blockNumber}-${chilling.extrinsicIndex})
+        `
+    );
+    await sendMessage(chatId, message);
+}
+
+async function sendOfflineEvent(chatId, validator, offlineEvent) {
+    let message = dedent(
+        `🆘 ${validator.name} was found to be offline at the end of the session!
+        *Event:* [link](https://${config.networkName.toLowerCase()}.subscan.io/event/${offlineEvent.blockNumber}-${offlineEvent.eventIndex})
+        `
+    );
+    await sendMessage(chatId, message);
 }
 
 async function sendInvalidStashAddress(chatId) {
@@ -671,6 +737,9 @@ module.exports = {
     sendValidatorRemoved: sendValidatorRemoved,
     sendUnrecognizedCommand: sendUnrecognizedCommand,
     sendBlocksAuthored: sendBlocksAuthored,
+    sendNewNomination: sendNewNomination,
+    sendChilling: sendChilling,
+    sendOfflineEvent: sendOfflineEvent,
     sendInvalidStashAddress: sendInvalidStashAddress,
     sendValidatorAlreadyAdded: sendValidatorAlreadyAdded,
     sendValidatorFetchInProgress: sendValidatorFetchInProgress,
@@ -681,7 +750,9 @@ module.exports = {
     sendHelp: sendHelp,
     sendUnclaimedPayoutWarning: sendUnclaimedPayoutWarning,
     sendChatHasMaxValidators: sendChatHasMaxValidators,
-    sendSettings: sendSettings,
+    sendSettingsMenu: sendSettingsMenu,
+    sendBlockAuthorshipNotificationSettings: sendBlockAuthorshipNotificationSettings,
+    sendUnclaimedPayoutNotificationSettings: sendUnclaimedPayoutNotificationSettings,
     sendLoadingStakingInfo: sendLoadingStakingInfo,
     sendStakingInfo: sendStakingInfo,
     sendReleaseNotes: sendReleaseNotes,

@@ -9,6 +9,9 @@ A telegram bot for the validators enrolled in the [Polkadot](https://polkadot.ne
 This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Programme to get information and notifications about their validators. Operators can view validator information and staking rewards reports, and receive notifications when the validator:
 
 - 🔴 goes offline or 🟢 comes back online
+- ⭐️ receives a new nomination
+- 🥶 submits a chill extrinsic
+- 🆘 commits an offline offence
 - 📈 gains or 📉 loses rank
 - 🚀 enters or ⏸ leaves the active validator set
 - 🔑 updates session keys 
@@ -40,4 +43,4 @@ This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Progra
 
 Don't forget to turn on push notifications for Telegram to receive alerts about your validator.
 
-🎉 Happy validating, and you're much welcome to tip my Kusama stash at `GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg` if you feel like it:)
+🎉 Happy validating, and you're much welcome to nominate or tip my Kusama validator at `GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg`.

@@ -29,7 +29,7 @@ async function fetchAndPersistValidatorInfo(stashAddress, chatId) {
             Messaging.sendValidatorNotFound(chatId, stashAddress);
         }
     } catch (error) {
-        logger.error(`❗️ Unexpected error while  fetching 1KV validator: ${error}`);
+        logger.error(`❗️ Unexpected error while fetching 1KV validator: ${error}`);
         Messaging.sendUnexpectedError(chatId);
         Data.setChatState(chatId, Data.ChatState.IDLE);
     }
@@ -75,6 +75,82 @@ async function processCallbackQuery(query) {
     } else {
         logger.info('Callback query coming from the last settings message.');
     }
+    if (data.closeSettings) {
+        Messaging.answerCallbackQuery(queryId);
+        if (chat.lastSettingsMessageId) {
+            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsCommandMessageId);
+            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsMessageId);
+        }
+        return;
+    }
+    // back to settings menu
+    if (data.backToSettingsMenu) {
+        Messaging.answerCallbackQuery(queryId);
+        Messaging.sendSettingsMenu(chat, chat.lastSettingsMessageId);
+        return;
+    }
+    // block authorship notification settings sub-menu
+    if (data.goToSubMenu == 'blockAuthorshipNotificationSettings') {
+        Messaging.answerCallbackQuery(queryId);
+        Messaging.sendBlockAuthorshipNotificationSettings(chat, chat.lastSettingsMessageId);
+        return;
+    }
+    // unclaimed payout notification settings sub-menu
+    if (data.goToSubMenu == 'unclaimedPayoutNotificationSettings') {
+        Messaging.answerCallbackQuery(queryId);
+        Messaging.sendUnclaimedPayoutNotificationSettings(chat, chat.lastSettingsMessageId);
+        return;
+    }
+    if (typeof data.sendNewNominationNotifications !== 'undefined') {
+        const successful = await Data.setChatSendNewNominationNotifications(
+            chatId,
+            data.sendNewNominationNotifications
+        );
+        // respond
+        if (successful) {
+            chat.sendNewNominationNotifications = data.sendNewNominationNotifications;
+            Messaging.answerCallbackQuery(queryId);
+            // update settings message
+            await Messaging.sendSettingsMenu(chat, chat.lastSettingsMessageId);
+        } else {
+            Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
+        }
+        return;
+    }
+    if (typeof data.sendChillingEventNotifications !== 'undefined') {
+        const successful = await Data.setChatSendChillingEventNotifications(
+            chatId,
+            data.sendChillingEventNotifications
+        );
+        // respond
+        if (successful) {
+            chat.sendChillingEventNotifications = data.sendChillingEventNotifications;
+            Messaging.answerCallbackQuery(queryId);
+            // update settings message
+            await Messaging.sendSettingsMenu(chat, chat.lastSettingsMessageId);
+        } else {
+            Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
+        }
+        return;
+    }
+    if (typeof data.sendOfflineEventNotifications !== 'undefined') {
+        const successful = await Data.setChatSendOfflineEventNotifications(
+            chatId,
+            data.sendOfflineEventNotifications
+        );
+        // respond
+        if (successful) {
+            chat.sendOfflineEventNotifications = data.sendOfflineEventNotifications;
+            Messaging.answerCallbackQuery(queryId);
+            // update settings message
+            await Messaging.sendSettingsMenu(chat, chat.lastSettingsMessageId);
+        } else {
+            Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
+        }
+        return;
+    }
+
+    // block authorship notification settings
     const blockNotificationPeriod = data.blockNotificationPeriod;
     if (typeof blockNotificationPeriod !== 'undefined') {
         if (blockNotificationPeriod == Data.BlockNotificationPeriod.OFF
@@ -87,9 +163,9 @@ async function processCallbackQuery(query) {
             // respond
             if (successful) {
                 chat.blockNotificationPeriod = blockNotificationPeriod;
-                Messaging.answerCallbackQuery(queryId, 'Settings updated!');
+                Messaging.answerCallbackQuery(queryId);
                 // update settings message
-                await Messaging.sendSettings(chat, chat.lastSettingsMessageId);
+                await Messaging.sendBlockAuthorshipNotificationSettings(chat, chat.lastSettingsMessageId);
                 // send pending notifications
                 if (blockNotificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
                     sendPendingNotificationsForChat(chatId);
@@ -104,6 +180,7 @@ async function processCallbackQuery(query) {
             logger.info(`Invalid block notification period ${blockNotificationPeriod}. Ignore.`);
             Messaging.answerCallbackQuery(queryId, 'Invalid data.');
         }
+        return;
     }
     const unclaimedPayoutNotificationPeriod = data.unclaimedPayoutNotificationPeriod;
     if (typeof unclaimedPayoutNotificationPeriod !== 'undefined') {
@@ -119,22 +196,15 @@ async function processCallbackQuery(query) {
             // respond
             if (successful) {
                 chat.unclaimedPayoutNotificationPeriod = unclaimedPayoutNotificationPeriod;
-                Messaging.answerCallbackQuery(queryId, 'Settings updated!');
+                Messaging.answerCallbackQuery(queryId);
                 // update settings message
-                await Messaging.sendSettings(chat, chat.lastSettingsMessageId);
+                await Messaging.sendUnclaimedPayoutNotificationSettings(chat, chat.lastSettingsMessageId);
             } else {
                 Messaging.answerCallbackQuery(queryId, 'Error while updating settings:/');
             }
         } else {
             logger.info(`Invalid unclaimed payout notification period ${unclaimedPayoutNotificationPeriod}. Ignore.`);
             Messaging.answerCallbackQuery(queryId, 'Invalid data.');
-        }
-    }
-    const closeSettings = data.closeSettings;
-    if (typeof closeSettings !== 'undefined' && closeSettings) {
-        if (chat.lastSettingsMessageId) {
-            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsCommandMessageId);
-            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsMessageId);
         }
     }
 }
@@ -236,7 +306,7 @@ async function processTelegramUpdate(update) {
         }
     } else if (text == `/settings`) {
         logger.info(`/settings received.`);
-        const message = await Messaging.sendSettings(chat);
+        const message = await Messaging.sendSettingsMenu(chat);
         if (chat.lastSettingsMessageId) {
             await Messaging.deleteMessage(chat.chatId, chat.lastSettingsCommandMessageId);
             await Messaging.deleteMessage(chat.chatId, chat.lastSettingsMessageId);
@@ -438,6 +508,13 @@ async function updateValidator(validator) {
             updates.name = w3fValidator.name;
             messageComponents.push('\n🏷 has a new name ' + markdownEscape(updates.name));
         }
+        // compare controller
+        if (!validator.controllerAddress) {
+            updates.controllerAddress = w3fValidator.controllerAddress;
+        } else if (updates.controllerAddress != w3fValidator.controllerAddress) {
+            updates.controllerAddress = w3fValidator.controllerAddress;
+            messageComponents.push('\n⚓️ has a new controller [' + w3fValidator.controllerAddress.slice(0, 6) + '..' + w3fValidator.controllerAddress.slice(-6) + `](https://${config.networkName.toLowerCase()}.subscan.io/account/${w3fValidator.controllerAddress})`);
+        }
         // compare rank
         if (validator.rank < w3fValidator.rank) {
             updates.rank = w3fValidator.rank;
@@ -634,12 +711,19 @@ async function processRewardsUpToBlock(blockNumber) {
 
 async function onFinalizedBlock(blockNumber, blockHash, blockAuthor) {
     logger.info(`⛓  Finalized block #${blockNumber} authored by ${blockAuthor}`);
-    const validator = await Data.getValidatorByStashAddress(blockAuthor);
-    if (validator) {
-        processNewBlockByValidator(blockNumber, validator)
-    }
+    checkBlockForAuthorship(blockNumber, blockAuthor);
+    checkBlockForNominations(blockNumber);
+    checkBlockForChillingEvents(blockNumber);
+    checkBlockForOfflineEvents(blockNumber);
     if (blockNumber % 100 == 0) { // ~ every 10 minutes
         processRewardsUpToBlock(blockNumber - 25);
+    }
+}
+
+async function checkBlockForAuthorship(blockNumber, blockAuthor) {
+    const validator = await Data.getValidatorByStashAddress(blockAuthor);
+    if (validator) {
+        await processNewBlockByValidator(blockNumber, validator)
     }
 }
 
@@ -650,15 +734,80 @@ async function processNewBlockByValidator(blockNumber, validator) {
             let notificationPeriod = chat.blockNotificationPeriod;
             if (notificationPeriod == Data.BlockNotificationPeriod.IMMEDIATE) {
                 logger.info(`Chat [${chat.chatId}] block notification period is immediate. Send notification for ${validator.name}.`);
-                Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
+                await Messaging.sendBlocksAuthored(chat.chatId, validator, [blockNumber]);
             } else if (notificationPeriod != Data.BlockNotificationPeriod.OFF) {
                 logger.info(`Chat [${chat.chatId}] block notification period is ${notificationPeriod} mins. Save notification.`);
-                Data.savePendingBlockNotification(
+                await Data.savePendingBlockNotification(
                     chat,
                     validator,
                     blockNumber
                 );
             }
+        }
+    }
+}
+
+async function checkBlockForNominations(blockNumber) {
+    const nominations = await Polkadot.getNominationsInBlock(blockNumber);
+    for (let nomination of nominations) {
+        for (let validatorAddress of nomination.validatorAddresses) {
+            const validator = await Data.getValidatorByStashAddress(validatorAddress);
+            if (validator) {
+                await processNewNominationForValidator(nomination, validator)
+            }
+        }
+    }
+}
+
+async function processNewNominationForValidator(nomination, validator) {
+    logger.info(`New nomination for ${validator.name}.`);
+    for (let chatId of validator.chatIds) {
+        let chat = await Data.getChatById(chatId);
+        if (chat && chat.sendNewNominationNotifications) {
+            await Messaging.sendNewNomination(chat.chatId, validator, nomination);
+        }
+    }
+}
+
+async function checkBlockForChillingEvents(blockNumber) {
+    const chillings = await Polkadot.getChillingsInBlock(blockNumber);
+    for (let chilling of chillings) {
+        const validator = await Data.getValidatorByControllerAddress(chilling.controllerAddress);
+        if (validator) {
+            await processNewChillingForValidator(chilling, validator)
+        }
+    }
+}
+
+async function processNewChillingForValidator(chilling, validator) {
+    logger.info(`New chilling for ${validator.name}.`);
+    for (let chatId of validator.chatIds) {
+        let chat = await Data.getChatById(chatId);
+        if (chat && chat.sendChillingEventNotifications) {
+            await Messaging.sendChilling(chat.chatId, validator, chilling);
+        }
+    }
+}
+
+async function checkBlockForOfflineEvents(blockNumber) {
+    const offlineEvent = await Polkadot.getOfflineEventInBlock(blockNumber);
+    if (!offlineEvent) {
+        return;
+    }
+    for (let validatorAddress of offlineEvent.validatorAddresses) {
+        const validator = await Data.getValidatorByStashAddress(validatorAddress);
+        if (validator) {
+            await processNewOfflineEventForValidator(offlineEvent, validator)
+        }
+    }
+}
+
+async function processNewOfflineEventForValidator(offlineEvent, validator) {
+    logger.info(`New offline event for ${validator.name}.`);
+    for (let chatId of validator.chatIds) {
+        let chat = await Data.getChatById(chatId);
+        if (chat && chat.sendOfflineEventNotifications) {
+            await Messaging.sendOfflineEvent(chat.chatId, validator, offlineEvent);
         }
     }
 }
