@@ -511,7 +511,7 @@ async function updateValidator(validator) {
         // compare controller
         if (!validator.controllerAddress) {
             updates.controllerAddress = w3fValidator.controllerAddress;
-        } else if (updates.controllerAddress != w3fValidator.controllerAddress) {
+        } else if (validator.controllerAddress != w3fValidator.controllerAddress) {
             updates.controllerAddress = w3fValidator.controllerAddress;
             messageComponents.push('\n⚓️ has a new controller [' + w3fValidator.controllerAddress.slice(0, 6) + '..' + w3fValidator.controllerAddress.slice(-6) + `](https://${config.networkName.toLowerCase()}.subscan.io/account/${w3fValidator.controllerAddress})`);
         }
