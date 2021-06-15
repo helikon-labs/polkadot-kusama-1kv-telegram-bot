@@ -7,7 +7,7 @@ const kusamaEraLengthMins = 360;
 const polkadotEraLengthMins = 1440;
 
 const config = {
-    version: '1.4.1',
+    version: '1.4.2',
     sendReleaseNotes: false,
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,

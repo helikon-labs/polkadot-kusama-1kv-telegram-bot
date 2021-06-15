@@ -616,7 +616,7 @@ async function updateValidator(validator) {
                 logger.info(`${validator.name} database update successful.`);
                 if (messageComponents.length > 0) {
                     logger.info(`Send update message for [${validator.stashAddress}].`);
-                    let message = markdownEscape(validator.name) + messageComponents.join("");
+                    let message = markdownEscape(validator.name) + markdownEscape(messageComponents.join(""));
                     for (let chatId of validator.chatIds) {
                         await Messaging.sendMessage(chatId, message);
                     }
