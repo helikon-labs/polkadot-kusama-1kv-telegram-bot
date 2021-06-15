@@ -547,7 +547,7 @@ async function updateValidator(validator) {
             messageComponents.push('\n' + '❌ has become an invalid 1KV validator:');
             for (let validityItem of w3fValidator.validityItems) {
                 if (!validityItem.valid) {
-                    messageComponents.push(`\n- ${validityItem.details}`);
+                    messageComponents.push(`\n- ${markdownEscape(validityItem.details)}`);
                 }
             }
         } else if (validator.invalidityReasons != w3fValidator.invalidityReasons) {
@@ -616,7 +616,7 @@ async function updateValidator(validator) {
                 logger.info(`${validator.name} database update successful.`);
                 if (messageComponents.length > 0) {
                     logger.info(`Send update message for [${validator.stashAddress}].`);
-                    let message = markdownEscape(validator.name) + markdownEscape(messageComponents.join(""));
+                    let message = markdownEscape(validator.name) + messageComponents.join("");
                     for (let chatId of validator.chatIds) {
                         await Messaging.sendMessage(chatId, message);
                     }

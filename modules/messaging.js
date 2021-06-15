@@ -218,7 +218,7 @@ async function sendValidatorNotFound(chatId, stashAddress) {
 }
 
 async function sendValidatorAdded(chatId, validator) {
-    const message = `${validator.name} has been added to your list.` 
+    const message = `${markdownEscape(validator.name)} has been added to your list.` 
                 + ` You will receive updates regarding the status of your validator and its activity`
                 + ` on the ${config.networkName} blockchain. I will send you block authorship notifications at the end of every hour,`
                 + ` you can change this period with the /settings command. Please use the /remove command to remove this validator`
@@ -365,21 +365,21 @@ async function sendBlocksAuthored(chatId, validator, blockNumbers) {
     if (blockNumbers == 0) { 
         return; 
     } else if (blockNumbers.length == 1) {
-        message = `${validator.name} has authored block ` 
+        message = `${markdownEscape(validator.name)} has authored block ` 
             + `[${blockNumbers[0]}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumbers[0]}).`;
     } else if (blockNumbers.length < 11) {
-        message = `${validator.name} has authored blocks `
+        message = `${markdownEscape(validator.name)} has authored blocks `
             + blockNumbers.map(blockNumber => `[${blockNumber}](https://${config.networkName.toLowerCase()}.subscan.io/block/${blockNumber})`).join(', ')
             + '.';
     } else {
-        message = `${validator.name} has authored ${blockNumbers.length} blocks.`;
+        message = `${markdownEscape(validator.name)} has authored ${blockNumbers.length} blocks.`;
     }
     return await sendMessage(chatId, message);
 }
 
 async function sendNewNomination(chatId, validator, nomination) {
     let message = dedent(
-        `⭐️ ${validator.name} received a new nomination!
+        `⭐️ ${markdownEscape(validator.name)} received a new nomination!
         *Nominator:* [${nomination.nominator.slice(0, 6) + '..' + nomination.nominator.slice(-6)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${nomination.nominator})
         *Stake:* ${formatAmount(nomination.activeStake)}
         *Nominee Count:* ${nomination.validatorAddresses.length}
@@ -391,7 +391,7 @@ async function sendNewNomination(chatId, validator, nomination) {
 
 async function sendChilling(chatId, validator, chilling) {
     let message = dedent(
-        `🥶 ${validator.name} got chilled!
+        `🥶 ${markdownEscape(validator.name)} got chilled!
         Controller [${chilling.controllerAddress.slice(0, 4)}..${chilling.controllerAddress.slice(-4)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${chilling.controllerAddress}) declared no desire to validate.
         Effects will be felt at the beginning of the next era.
         *Extrinsic:* [link](https://${config.networkName.toLowerCase()}.subscan.io/extrinsic/${chilling.blockNumber}-${chilling.extrinsicIndex})
@@ -402,7 +402,7 @@ async function sendChilling(chatId, validator, chilling) {
 
 async function sendOfflineEvent(chatId, validator, offlineEvent) {
     let message = dedent(
-        `🆘 ${validator.name} was found to be offline at the end of the session!
+        `🆘 ${markdownEscape(validator.name)} was found to be offline at the end of the session!
         *Event:* [link](https://${config.networkName.toLowerCase()}.subscan.io/event/${offlineEvent.blockNumber}-${offlineEvent.eventIndex})
         `
     );
@@ -415,7 +415,7 @@ async function sendInvalidStashAddress(chatId) {
 }
 
 async function sendValidatorAlreadyAdded(validator, chatId) {
-    const message = `${validator.name} is already added.`;
+    const message = `${markdownEscape(validator.name)} is already added.`;
     await sendMessage(chatId, message);
 }
 
@@ -500,7 +500,7 @@ async function sendHelp(chatId) {
 
 async function sendUnclaimedPayoutWarning(validator, chatIds, eras) {
     const erasString = eras.join(', ');
-    const message = `💰 *${validator.name}* has unclaimed rewards for ${eras.length > 1 ? 'eras' : 'era'} ${erasString}. Please [claim your payouts](https://polkadot.js.org/apps/#/staking/payout) as soon as possible.`
+    const message = `💰 *${markdownEscape(validator.name)}* has unclaimed rewards for ${eras.length > 1 ? 'eras' : 'era'} ${erasString}. Please [claim your payouts](https://polkadot.js.org/apps/#/staking/payout) as soon as possible.`
     for (let chatId of chatIds) {
         await sendMessage(chatId, message);
     }
