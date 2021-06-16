@@ -637,12 +637,12 @@ async function updateValidators() {
     logger.info(`🔄  Update 1KV validators.`);
     const validators = await Data.getAllValidators();
     for (let validator of validators) {
-        updateValidator(validator);
+        await updateValidator(validator);
     }
 }
 
 function start1KVUpdateJob() {
-    cron.schedule('*/5 * * * *', () => {
+    cron.schedule('*/7 * * * *', () => {
         updateValidators();
     });
 }
