@@ -604,7 +604,7 @@ async function updateValidator(validator) {
         // update version
         if (validator.version != w3fValidator.version) {
             updates.version = w3fValidator.version;
-            messageComponents.push(`\n🧬 is now running version ${w3fValidator.version}`);
+            messageComponents.push(`\n🧬 is now running version ${markdownEscape(w3fValidator.version)}`);
         }
         // process updates
         let updateCount = Object.keys(updates).length;
