@@ -288,7 +288,7 @@ async function processTelegramUpdate(update) {
             'Sure, please select the validator to be removed.',
             Data.ChatState.REMOVE
         );
-    } else if (text == `/validatorinfo`) {
+    } else if (text == `/validatorinfo` || text == `/vi`) {
         logger.info(`/validatorinfo received.`);
         const validators = await Data.getValidatorsForChat(chatId);
         if (validators.length < 1) {

@@ -7,7 +7,7 @@ const kusamaEraLengthMins = 360;
 const polkadotEraLengthMins = 1440;
 
 const config = {
-    version: '1.4.5',
+    version: '1.4.6',
     sendReleaseNotes: false,
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,
@@ -31,7 +31,7 @@ const configure = () => {
     if (!args.network) {
         logger.error(`Please provide the network argument (e.g. --network=kusama).`);
         return false;
-    } else if (args.network.toLowerCase() == 'polkadot') { // assume Polkadot when no args
+    } else if (args.network.toLowerCase() == 'polkadot') {
         logger.info('Configuring for Polkadot.');
         config.networkName = 'Polkadot';
         config.network1KVInfoURL = 'https://polkadot.network/supporting-decentralization-join-the-polkadot-thousand-validators-programme/';

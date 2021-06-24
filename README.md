@@ -36,7 +36,7 @@ This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Progra
 - `/help` display all commands
 - `/add` start the process of adding a validator to the chat
 - `/remove` start the process of removing a validator from the chat
-- `/validatorinfo` view the details of any of the added validators
+- `/validatorinfo` (or `/vi`) view the details of any of the added validators
 - `/rewards` view the monthly rewards chart for a validator or any other address
 - `/stakinginfo` display self, active and inactive stake amounts for a validator
 - `/settings` configure the bot
