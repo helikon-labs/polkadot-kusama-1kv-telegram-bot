@@ -285,7 +285,13 @@ async function removeValidator(validatorToRemove, chatId) {
 
 async function getValidatorByName(name) {
     const validatorCollection = await MongoDB.getValidatorCollection();
-    return await validatorCollection.findOne({ name: name });
+    return await validatorCollection.findOne(
+        {
+            $text: {
+                $search: name, $caseSensitive: true
+            }
+        }
+    );
 }
 
 async function getValidatorByStashAddress(stashAddress) {
