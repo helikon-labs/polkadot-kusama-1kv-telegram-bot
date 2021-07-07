@@ -288,7 +288,8 @@ async function getValidatorByName(name) {
     return await validatorCollection.findOne(
         {
             $text: {
-                $search: name, $caseSensitive: true
+                $search: `"${name.replace(/"/g, '\\"')}"`,
+                $caseSensitive: true
             }
         }
     );
