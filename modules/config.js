@@ -4,10 +4,12 @@ const args = require('yargs').argv;
 const logger = require('./logging');
 
 const kusamaEraLengthMins = 360;
+const kusamaSessionLengthMins = 60;
 const polkadotEraLengthMins = 1440;
+const polkadotSessionLengthMins = 240;
 
 const config = {
-    version: '1.4.7',
+    version: '1.4.8',
     sendReleaseNotes: false,
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,
@@ -20,6 +22,7 @@ const config = {
     rpcURL: '',
     w3fBaseURL: '',
     eraLengthMins: 0,
+    sessionLengthMins: 0,
     approximateBlockTimeSecs: 6,
     // different for Kusama and Polkadot,
     // will be fetched at startup
@@ -38,6 +41,7 @@ const configure = () => {
         config.rpcURL = process.env.POLKADOT_RPC_URL;
         config.w3fBaseURL = process.env.POLKADOT_W3F_BASE_URL;
         config.eraLengthMins = polkadotEraLengthMins;
+        config.sessionLengthMins = polkadotSessionLengthMins;
     } else if (args.network.toLowerCase() == 'kusama') {
         logger.info('Configuring for Kusama.');
         config.networkName = 'Kusama';
@@ -45,6 +49,7 @@ const configure = () => {
         config.rpcURL = process.env.KUSAMA_RPC_URL;
         config.w3fBaseURL = process.env.KUSAMA_W3F_BASE_URL;
         config.eraLengthMins = kusamaEraLengthMins;
+        config.sessionLengthMins = kusamaSessionLengthMins;
     } else {
         logger.error(`Unknown network ${args.network}. Exiting.`);
         return false;

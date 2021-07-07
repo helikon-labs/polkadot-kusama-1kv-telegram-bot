@@ -857,8 +857,8 @@ async function onEraChange(currentEra) {
     logger.info(`New era ${currentEra}.`);
     // send all pending block notifications
     await sendPendingNotifications();
-    // delay the unclaimed payout check for an hour
-    const unclaimedPayoutCheckDelayMs = 60 * 60 * 1000;
+    // delay the unclaimed payout check for a session length plus half hour
+    const unclaimedPayoutCheckDelayMs = (config.sessionLengthMins + 30) * 60 * 1000;
     setTimeout(() => {
         checkUnclaimedEraPayouts(currentEra);
     }, unclaimedPayoutCheckDelayMs);
