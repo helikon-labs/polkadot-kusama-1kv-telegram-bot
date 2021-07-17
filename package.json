@@ -15,7 +15,7 @@
     "author": "Kutsal Kaan Bilgin <kutsalbilgin@gmail.com>",
     "repository": {
         "type": "git",
-        "url": "https://github.com/kukabi/kusama-1kv-telegram-bot.git"
+        "url": "https://github.com/helikon-labs/kusama-1kv-telegram-bot.git"
     },
     "license": "ISC",
     "dependencies": {

@@ -379,7 +379,7 @@ async function sendBlocksAuthored(chatId, validator, blockNumbers) {
 
 async function sendNewNomination(chatId, validator, nomination) {
     let message = dedent(
-        `⭐️ ${markdownEscape(validator.name)} received a new nomination!
+        `⭐️ ${markdownEscape(validator.name)} received a nomination!
         *Nominator:* [${nomination.nominator.slice(0, 6) + '..' + nomination.nominator.slice(-6)}](https://${config.networkName.toLowerCase()}.subscan.io/account/${nomination.nominator})
         *Stake:* ${formatAmount(nomination.activeStake)}
         *Nominee Count:* ${nomination.validatorAddresses.length}
@@ -467,16 +467,16 @@ async function sendAbout(chatId) {
     const message = 
 `*v${config.version}*
 
-*Developer:* Kutsal Kaan Bilgin
+*Developer:* Kutsal Kaan Bilgin | Helikon Labs
 *Mail:* kutsal@helikon.tech
-*Repo:* [https://github.com/kukabi/polkadot-kusama-1kv-telegram-bot](github.com/kukabi/polkadot-kusama-1kv-telegram-bot)
+*Repo:* [https://github.com/helikon-labs/polkadot-kusama-1kv-telegram-bot](github.com/helikon-labs/polkadot-kusama-1kv-telegram-bot)
 *Matrix:* \`@helikon:matrix.org\`
 
-*Kusama Validator & Stash:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
-*Kusama 1KV Validator Name:* ⛰  Helikon Labs 001  ⛰
+*KSM Validator:* \`GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg\`
+*DOT Validator:* \`123kFHVth2udmM79sn3RPQ81HukrQWCxA1vmTWkGHSvkR4k1\`
 
-Feel free to tip or nominate my stash/validator:)
-Please submit issues to the [GitHub repo](github.com/kukabi/polkadot-kusama-1kv-telegram-bot) for any bugs or ideas.
+Feel free to tip or nominate our stash/validator:)
+Please submit issues to the [GitHub repo](github.com/helikon-labs/polkadot-kusama-1kv-telegram-bot) for any bugs or ideas.
 Happy validating 🎉
 `;
     await sendMessage(chatId, message);

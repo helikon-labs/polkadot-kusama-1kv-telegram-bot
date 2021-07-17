@@ -1,4 +1,4 @@
-<p align="center"><img width="65" src="https://raw.githubusercontent.com/kukabi/kusama-1kv-telegram-bot/main/readme_files/polkadot_white_over_pink.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img width="65" src="https://raw.githubusercontent.com/kukabi/kusama-1kv-telegram-bot/main/readme_files/kusama_canary_white_over_pink.png"></p>
+<p align="center"><img width="65" src="https://raw.githubusercontent.com/helikon-labs/kusama-1kv-telegram-bot/main/readme_files/polkadot_white_over_pink.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img width="65" src="https://raw.githubusercontent.com/helikon-labs/kusama-1kv-telegram-bot/main/readme_files/kusama_canary_white_over_pink.png"></p>
 
 ## Polkadot & Kusama Thousand Validators Programme (1KV) Telegram Bot
 
@@ -43,4 +43,7 @@ This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Progra
 
 Don't forget to turn on push notifications for Telegram to receive alerts about your validator.
 
-🎉 Happy validating, and you're much welcome to nominate or tip my Kusama validator at `GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg`.
+🎉 Happy validating, and you're much welcome to nominate our validators:
+
+- Kusama `GC8fuEZG4E5epGf5KGXtcDfvrc6HXE7GJ5YnbiqSpqdQYLg`
+- Polkadot `123kFHVth2udmM79sn3RPQ81HukrQWCxA1vmTWkGHSvkR4k1`
