@@ -19,18 +19,18 @@
     },
     "license": "ISC",
     "dependencies": {
-        "@polkadot/api": "4.17.1",
+        "@polkadot/api": "5.3.2",
         "d3-node": "2.2.2",
-        "dedent": "^0.7.0",
+        "dedent": "0.7.0",
         "divide-bigint": "^1.0.4",
-        "dotenv": "^8.2.0",
+        "dotenv": "10.0.0",
         "markdown-escape": "^1.1.0",
-        "moment": "^2.29.1",
-        "mongodb": "^3.6.9",
-        "node-cron": "^2.0.3",
-        "node-fetch": "^2.6.1",
-        "sharp": "^0.28.0",
-        "winston": "^3.3.3",
-        "yargs": "^16.2.0"
+        "moment": "2.29.1",
+        "mongodb": "3.6.10",
+        "node-cron": "3.0.0",
+        "node-fetch": "2.6.1",
+        "sharp": "0.28.3",
+        "winston": "3.3.3",
+        "yargs": "17.0.1"
     }
 }
