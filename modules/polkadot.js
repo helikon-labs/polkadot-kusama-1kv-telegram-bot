@@ -157,7 +157,8 @@ async function getRewardsInBlock(blockNumber) {
     for (let i = 0; i < allRecords.length; i++) {
         const { event } = allRecords[i];
         if (event.section.toLowerCase() == 'staking'
-                && event.method.toLowerCase() == 'reward') {
+                && (event.method.toLowerCase() == 'reward' 
+                    || event.method.toLowerCase() == 'rewarded')) {
             const reward = {
                 blockNumber: blockNumber,
                 timestamp: parseInt(timestamp.toString()),
