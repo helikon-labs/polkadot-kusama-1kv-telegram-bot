@@ -179,7 +179,7 @@ async function deleteChat(chatId) {
 async function fetchValidator(stashAddress) {
     logger.info(`Will fetch validator info for ${stashAddress}.`);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
     const response = await fetch(
         config.w3fBaseURL + '/candidate/' + stashAddress,
         { signal: controller.signal }
