@@ -642,7 +642,7 @@ async function updateValidators() {
 }
 
 function start1KVUpdateJob() {
-    cron.schedule('*/7 * * * *', () => {
+    cron.schedule(`*/${config.oneKVUpdatePeriodMins} * * * *`, () => {
         updateValidators();
     });
 }

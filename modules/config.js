@@ -24,6 +24,7 @@ const config = {
     eraLengthMins: 0,
     sessionLengthMins: 0,
     approximateBlockTimeSecs: 6,
+    oneKVUpdatePeriodMins: 7,
     // different for Kusama and Polkadot,
     // will be fetched at startup
     tokenSymbol: null,
@@ -42,6 +43,7 @@ const configure = () => {
         config.w3fBaseURL = process.env.POLKADOT_W3F_BASE_URL;
         config.eraLengthMins = polkadotEraLengthMins;
         config.sessionLengthMins = polkadotSessionLengthMins;
+        config.oneKVUpdatePeriodMins = 5;
     } else if (args.network.toLowerCase() == 'kusama') {
         logger.info('Configuring for Kusama.');
         config.networkName = 'Kusama';
@@ -50,6 +52,7 @@ const configure = () => {
         config.w3fBaseURL = process.env.KUSAMA_W3F_BASE_URL;
         config.eraLengthMins = kusamaEraLengthMins;
         config.sessionLengthMins = kusamaSessionLengthMins;
+        config.oneKVUpdatePeriodMins = 7;
     } else {
         logger.error(`Unknown network ${args.network}. Exiting.`);
         return false;
