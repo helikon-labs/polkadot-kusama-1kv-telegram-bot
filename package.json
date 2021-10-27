@@ -19,7 +19,7 @@
     },
     "license": "ISC",
     "dependencies": {
-        "@polkadot/api": "^6.4.2",
+        "@polkadot/api": "^6.5.2",
         "d3-node": "^2.2.3",
         "dedent": "^0.7.0",
         "divide-bigint": "^1.0.4",
