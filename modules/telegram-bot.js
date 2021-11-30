@@ -712,7 +712,7 @@ async function processRewardsUpToBlock(blockNumber) {
 async function onFinalizedBlock(blockNumber, blockHash, blockAuthor) {
     logger.info(`⛓  Finalized block #${blockNumber} authored by ${blockAuthor}`);
     checkBlockForAuthorship(blockNumber, blockAuthor);
-    checkBlockForNominations(blockNumber);
+    // checkBlockForNominations(blockNumber);
     checkBlockForChillingEvents(blockNumber);
     checkBlockForOfflineEvents(blockNumber);
     if (blockNumber % 100 == 0) { // ~ every 10 minutes
