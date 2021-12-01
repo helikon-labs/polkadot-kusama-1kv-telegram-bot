@@ -189,7 +189,7 @@ async function getNominationsInBlock(blockNumber) {
             const nominatorLedger = await api.query.staking.ledger(nominator);
             const activeStake = nominatorLedger.toJSON().active;
             const validatorAddresses = [];
-            for (let nominee of nominees[0]) {
+            for (let nominee of nominees[Object.keys(nominees)[0]]) {
                 validatorAddresses.push(nominee.Id);
             }
             let filteredEvents =
