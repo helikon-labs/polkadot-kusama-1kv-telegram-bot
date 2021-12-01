@@ -25,6 +25,7 @@ const config = {
     sessionLengthMins: 0,
     approximateBlockTimeSecs: 6,
     oneKVUpdatePeriodMins: 7,
+    oneKVTimeoutMillis: 4000,
     // different for Kusama and Polkadot,
     // will be fetched at startup
     tokenSymbol: null,
