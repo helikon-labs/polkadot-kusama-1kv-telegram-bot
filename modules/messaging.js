@@ -333,7 +333,9 @@ async function sendValidatorInfo(chatId, validator) {
         validatorInfo += `\n💵 ${markdownEscape(validator.commission)} commission`;
     }
     // version
-    validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
+    if (validator.version) {
+        validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
+    }
     // first discovered
     const firstDiscovered = moment.utc(new Date(validator.discoveredAt)).format('MMMM Do YYYY, HH:mm:ss');
     validatorInfo += `\n📡 First discovered on ${firstDiscovered} UTC`;
