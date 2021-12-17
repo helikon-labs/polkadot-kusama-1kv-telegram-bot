@@ -238,6 +238,7 @@ async function persistValidator(w3fValidator, chatId) {
         kusamaStashAddress: w3fValidator.kusamaStash,
         controllerAddress: w3fValidator.controllerAddress,
         rank: w3fValidator.rank,
+        location: w3fValidator.location,
         discoveredAt: w3fValidator.discoveredAt,
         nominatedAt: w3fValidator.nominatedAt,
         onlineSince: w3fValidator.onlineSince,

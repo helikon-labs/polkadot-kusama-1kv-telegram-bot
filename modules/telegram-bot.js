@@ -601,6 +601,11 @@ async function updateValidator(validator) {
             updates.sessionKeys = w3fValidator.sessionKeys;
             messageComponents.push('\n' + '🔑 has new session keys: `' + w3fValidator.sessionKeys.slice(0, 8) + '..' + w3fValidator.sessionKeys.slice(-8) + '`');
         }
+        // compare location
+        if (validator.location != w3fValidator.location) {
+            updates.location = w3fValidator.location;
+            messageComponents.push(`\n🌏 is now located in ${w3fValidator.location}`);
+        }
         // update version
         if (validator.version != w3fValidator.version) {
             updates.version = w3fValidator.version;

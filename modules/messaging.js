@@ -332,6 +332,10 @@ async function sendValidatorInfo(chatId, validator) {
     if (validator.commission) {
         validatorInfo += `\n💵 ${markdownEscape(validator.commission)} commission`;
     }
+    // location
+    if (validator.location) {
+        validatorInfo += `\n🌏 Location: ${markdownEscape(validator.location)}`;
+    }
     // version
     if (validator.version) {
         validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
