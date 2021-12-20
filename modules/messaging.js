@@ -306,9 +306,9 @@ async function sendValidatorInfo(chatId, validator) {
         }
     }
     // online / offline
-    if (validator.onlineSince > 0) {
-        const onlineSince = moment.utc(new Date(validator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss');
-        validatorInfo += `\n🟢 Online since ${onlineSince} UTC`;
+    if (validator.offlineSince == 0) {
+        // const onlineSince = moment.utc(new Date(validator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss');
+        validatorInfo += `\n🟢 Online`; // `\n🟢 Online since ${onlineSince} UTC`;
     } else if (validator.offlineSince > 0) {
         const offlineSince = moment.utc(new Date(validator.offlineSince)).format('MMMM Do YYYY, HH:mm:ss');
         validatorInfo += `\n🔴 Offline since ${offlineSince} UTC`;
@@ -337,9 +337,11 @@ async function sendValidatorInfo(chatId, validator) {
         validatorInfo += `\n🌏 Location: ${markdownEscape(validator.location)}`;
     }
     // version
+    /*
     if (validator.version) {
         validatorInfo += `\n🧬 Is running version ${markdownEscape(validator.version)}`;
     }
+    */
     // first discovered
     const firstDiscovered = moment.utc(new Date(validator.discoveredAt)).format('MMMM Do YYYY, HH:mm:ss');
     validatorInfo += `\n📡 First discovered on ${firstDiscovered} UTC`;
