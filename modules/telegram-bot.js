@@ -563,16 +563,16 @@ async function updateValidator(validator) {
             for (let chatId of validator.chatIds) {
                 sendPendingNotificationsForChat(chatId);
             }
-            // updates.onlineSince = w3fValidator.onlineSince;
+            updates.onlineSince = w3fValidator.onlineSince;
             updates.offlineSince = w3fValidator.offlineSince;
             updates.offlineAccumulated = w3fValidator.offlineAccumulated;
             messageComponents.push('\n🔴 went offline on ' + moment.utc(new Date(w3fValidator.offlineSince)).format('MMMM Do YYYY, HH:mm:ss'));
 
         } else if (validator.offlineSince > 0 && w3fValidator.offlineSince == 0) {
-            // updates.onlineSince = w3fValidator.onlineSince;
+            updates.onlineSince = w3fValidator.onlineSince;
             updates.offlineSince = w3fValidator.offlineSince;
             updates.offlineAccumulated = w3fValidator.offlineAccumulated;
-            messageComponents.push('\n🟢 came back online.'); // + moment.utc(new Date(w3fValidator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss'));
+            messageComponents.push('\n🟢 came back online on ' + moment.utc(new Date(w3fValidator.onlineSince)).format('MMMM Do YYYY, HH:mm:ss'));
         }
         // compare is active in set
         if (validator.isActiveInSet != w3fValidator.isActiveInSet) {
@@ -607,11 +607,10 @@ async function updateValidator(validator) {
             messageComponents.push(`\n🌏 is now located in ${w3fValidator.location}`);
         }
         // update version
-        /*
         if (validator.version != w3fValidator.version) {
             updates.version = w3fValidator.version;
-            messageComponents.push(`\n🧬 is now running version ${markdownEscape(w3fValidator.version)}`);
-        } */
+            // messageComponents.push(`\n🧬 is now running version ${markdownEscape(w3fValidator.version)}`);
+        }
         // process updates
         let updateCount = Object.keys(updates).length;
         if (updateCount > 0) {

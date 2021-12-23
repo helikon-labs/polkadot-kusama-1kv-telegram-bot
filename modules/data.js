@@ -187,8 +187,8 @@ async function fetchValidator(stashAddress) {
     clearTimeout(timeoutId);
     if (response.status == 200) {
         const w3fValidator = await response.json();
-        w3fValidator.validityItems = w3fValidator.validity;
-        delete w3fValidator.validity;
+        w3fValidator.validityItems = w3fValidator.invalidity;
+        delete w3fValidator.invalidity;
         w3fValidator.isValid = w3fValidator.validityItems.reduce(
             (sum, next) => sum && next.valid, true
         );
