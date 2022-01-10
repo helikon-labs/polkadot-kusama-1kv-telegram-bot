@@ -4,6 +4,14 @@
 
 [![Chat on Telegram](https://img.shields.io/badge/Chat%20on-Telegram-brightgreen.svg)](https://t.me/kusama_1kv_bot) 
 
+---
+
+### W3F Grant Program Notice
+
+📣 This bot will soon be migrated to use the [SubVT](https://github.com/helikon-labs/subvt) (Substrate Validator Toolkit) backend, become [SubVT (Substrate Validator Toolkit) Telegram Bot](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) and support all validators of Polkadot and Kusama. The migration effort is proudly supported by the [Web3 Foundation Grants Program](https://web3.foundation/grants/). You may find more about SubVT on the initial Kusama Treasury spending [proposal](https://kusama.polkassembly.io/post/683) along with the milestones 1-3 [progress](https://kusama.polkassembly.io/post/683#06d9efa6-d070-4c78-b59f-5ea958e93ce0), also please take a look at the SubVT top-level [repository](https://github.com/helikon-labs/subvt) for more documentation.
+
+---
+
 A telegram bot for the validators enrolled in the [Polkadot](https://polkadot.network/supporting-decentralization-join-the-polkadot-thousand-validators-programme/) and [Kusama Thousand Validators Programme](https://polkadot.network/join-kusamas-thousand-validators-programme/). You may find Polkadot bot available for chat at [https://t.me/polkadot_1kv_bot](https://t.me/polkadot_1kv_bot), and the Kusama bot at [https://t.me/kusama_1kv_bot](https://t.me/kusama_1kv_bot).
 
 This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Programme to get information and notifications about their validators. Operators can view validator information and staking rewards reports, and receive notifications when the validator:
