@@ -23,7 +23,7 @@
         "d3-node": "^2.2.3",
         "dedent": "^0.7.0",
         "divide-bigint": "^1.0.4",
-        "dotenv": "^13.0.1",
+        "dotenv": "^14.2.0",
         "markdown-escape": "^1.1.0",
         "moment": "^2.29.1",
         "mongodb": "^3.7.3",
