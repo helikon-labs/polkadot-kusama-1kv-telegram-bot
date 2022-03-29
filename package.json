@@ -19,12 +19,14 @@
     },
     "license": "ISC",
     "dependencies": {
-        "@polkadot/api": "^7.14.1",
+        "@polkadot/api": "^7.14.3",
         "d3-node": "^2.2.3",
         "dedent": "^0.7.0",
         "divide-bigint": "^1.0.4",
         "dotenv": "^16.0.0",
+        "json-schema": ">=0.4.0",
         "markdown-escape": "^1.1.0",
+        "minimist": ">=1.2.6",
         "moment": "^2.29.1",
         "mongodb": "^3.7.3",
         "node-cron": "^3.0.0",
@@ -32,5 +34,8 @@
         "sharp": "^0.30.3",
         "winston": "^3.6.0",
         "yargs": "^17.4.0"
+    },
+    "devDependencies": {
+        "json-schema": ">=0.4.0"
     }
 }
