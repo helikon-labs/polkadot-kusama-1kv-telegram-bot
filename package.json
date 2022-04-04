@@ -27,7 +27,7 @@
         "json-schema": ">=0.4.0",
         "markdown-escape": "^1.1.0",
         "minimist": ">=1.2.6",
-        "moment": "^2.29.1",
+        "moment": "^2.29.2",
         "mongodb": "^3.7.3",
         "node-cron": "^3.0.0",
         "node-fetch": "^2.6.7",
