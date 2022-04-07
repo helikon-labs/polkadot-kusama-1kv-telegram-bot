@@ -31,12 +31,26 @@ This bot helps the node operators enrolled in the Kusama and Polkadot 1KV Progra
 
 #### To run the bot yourself:
 
-- first go through the [Telegram Bot API documentation](https://core.telegram.org/bots/api) and get your bot registered
-- get a local or remote MongoDB instance running
-- rename `.env.sample` to `.env`, and change the variables according to your environment
-- rename `assets/fonts/fonts.conf.sample` to `assets/fonts/fonts.conf`, and change the variables according to your environment
+- First go through the [Telegram Bot API documentation](https://core.telegram.org/bots/api) and get your bot registered.
+- Get a local or remote MongoDB instance running.
+- Rename `.env.sample` to `.env` in the root direcotry, and change the variables according to your environment.
+- Rename `assets/fonts/fonts.conf.sample` to `assets/fonts/fonts.conf`, and change the variables according to your environment.
 - `npm install`
-- and `node app.js --network=polkadot` for the Polkadot 1KV, or `node app.js --network=kusama` for the Kusama 1KV.
+- `node app.js --network=polkadot` for the Polkadot 1KV, or `node app.js --network=kusama` for the Kusama 1KV.
+- Start a chat with the bot, and `/add` a validator to the chat.
+- Open the Mongo CLI, select the database and create a text index on the `name` field of the `validators` collection using the Mongo CLI. Example below assumes your database name is configured to be `kusama_1kv_bot` in the `.env` file in your root directory:
+
+  First select the database:
+
+  ```
+  use kusama_1kv_bot
+  ```
+  
+  Then create the index:
+  
+  ```
+  db.validators.createIndex( { name: "text" } )
+  ```
 
 #### Available bot commands:
 
