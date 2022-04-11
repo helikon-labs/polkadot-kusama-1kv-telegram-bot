@@ -33,7 +33,7 @@
         "node-fetch": "^2.6.7",
         "sharp": "^0.30.3",
         "winston": "^3.7.2",
-        "yargs": "^17.4.0"
+        "yargs": "^17.4.1"
     },
     "devDependencies": {
         "json-schema": ">=0.4.0"
