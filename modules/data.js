@@ -162,7 +162,7 @@ async function createChat(chatId) {
 }
 
 async function saveRewards(rewards) {
-    if (!rewards || !rewards.length || rewards.length < 1) {
+    if (!rewards || !rewards.length || rewards.length < 1) {
         return;
     }
     let rewardCollection = await MongoDB.getRewardCollection();
@@ -515,6 +515,21 @@ async function getRewards(targetStashAddress) {
     return await rewardCollection.find({targetStashAddress: targetStashAddress}).toArray();
 }
 
+async function getChatByMigrationCode(migrationCode) {
+    let chatCollection = await MongoDB.getChatCollection();
+    return await chatCollection.findOne(
+        { migrationCode: migrationCode }
+    );
+}
+
+async function setChatMigrationCode(chatId, migrationCode) {
+    let chatCollection = await MongoDB.getChatCollection();
+    await chatCollection.updateOne(
+        { chatId: chatId },
+        { $set: { migrationCode: migrationCode } }
+    );
+}
+
 module.exports = {
     ChatState: ChatState,
     BlockNotificationPeriod: BlockNotificationPeriod,
@@ -559,5 +574,7 @@ module.exports = {
     saveRewards: saveRewards,
     getRewards: getRewards,
     getLastFetchedRewardBlock: getLastFetchedRewardBlock,
-    setLastFetchedRewardBlock: setLastFetchedRewardBlock
+    setLastFetchedRewardBlock: setLastFetchedRewardBlock,
+    getChatByMigrationCode: getChatByMigrationCode,
+    setChatMigrationCode: setChatMigrationCode
 };

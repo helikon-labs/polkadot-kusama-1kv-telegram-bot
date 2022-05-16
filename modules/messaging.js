@@ -496,6 +496,7 @@ async function sendHelp(chatId) {
     const message = dedent(
         `Here's a list of commands to help you receive notifications about your validator node in the [${config.networkName} Thousand Validators Programme](${config.network1KVInfoURL}).
 
+        /migrate - migrate your validators to the SubVT Bot
         /add - add a new validator
         /remove - remove an existing validator
         /validatorinfo - get information about one of the added validators
@@ -538,6 +539,25 @@ async function sendStakingInfo(chatId, stakingInfo) {
 
 async function sendReleaseNotes(chatId) {
     const message = `📣 Bot upgraded to *v${config.version}*\n\n` + releaseNotes;
+    await sendMessage(chatId, message);
+}
+
+async function sendAlreadyMigrated(chatId, targetChat) {
+    const message = `👍 Chat has already been migrated to ${targetChat}.`;
+    await sendMessage(chatId, message);
+}
+
+async function sendMigrationCode(chatId, targetChat, migrationCode) {
+    let message = 
+`Your chat is now ready to be migrated to ${targetChat}.
+Your migration code is *${migrationCode}*.
+Now please start a chat with ${targetChat}`;
+    message += ', run the command `/migrate`, and enter your migration code *' + migrationCode + '*.';
+    await sendMessage(chatId, message);
+}
+
+async function sendNothingToMigrate(chatId, targetChat) {
+    let message = `You haven't added any validators yet. You can start a fresh chat with ${targetChat}.`;
     await sendMessage(chatId, message);
 }
 
@@ -771,5 +791,8 @@ module.exports = {
     answerCallbackQuery: answerCallbackQuery,
     deleteMessage: deleteMessage,
     sendAddressSelectionForRewards: sendAddressSelectionForRewards,
-    sendRewardsReport: sendRewardsReport
+    sendRewardsReport: sendRewardsReport,
+    sendAlreadyMigrated: sendAlreadyMigrated,
+    sendMigrationCode: sendMigrationCode,
+    sendNothingToMigrate: sendNothingToMigrate
 };
