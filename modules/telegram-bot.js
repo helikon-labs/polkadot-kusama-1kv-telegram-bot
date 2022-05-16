@@ -209,6 +209,19 @@ async function processCallbackQuery(query) {
     }
 }
 
+function getMigrationTargetChat() {
+    if (config.networkName == 'Kusama') {
+        return markdownEscape('@subvt_kusama_bot');
+    } else {
+        return markdownEscape('@subvt_polkadot_bot');
+    }
+}
+
+function generateMigrationCode() {
+    const migrationCode = Math.floor((Math.random() * 53739 + 12728));
+    return migrationCode.toString();
+}
+
 async function processTelegramUpdate(update) {
     if (update.callback_query) {
         processCallbackQuery(update.callback_query);
@@ -225,6 +238,11 @@ async function processTelegramUpdate(update) {
         chat = await Data.createChat(chatId);
     }
     logger.info(`Processing Telegram update id ${update.update_id}.`);
+    if (chat.isMigrated) {
+        let targetChat = getMigrationTargetChat();
+        Messaging.sendAlreadyMigrated(chatId, targetChat);
+        return;
+    }
     var text;
     if (isGroupChat) {
         if (update.message && update.message.group_chat_created) {
@@ -345,6 +363,23 @@ async function processTelegramUpdate(update) {
         const validators = await Data.getValidatorsForChat(chatId);
         await Messaging.sendAddressSelectionForRewards(validators, chatId);
         await Data.setChatState(chatId, Data.ChatState.REWARDS_ENTER_ADDRESS);
+    } else if (text == `/migrate`) {
+        const validators = await Data.getValidatorsForChat(chatId);
+        let targetChat = getMigrationTargetChat();
+        if (validators.length < 1) {
+            Messaging.sendNothingToMigrate(chatId, targetChat);
+        } else if (!chat.migrationCode) {
+            let migrationCode = generateMigrationCode();
+            while (await Data.getChatByMigrationCode(migrationCode)) {
+                migrationCode = generateMigrationCode();
+            }
+            await Data.setChatMigrationCode(chatId, migrationCode);
+            Messaging.sendMigrationCode(chatId, targetChat, migrationCode);
+        } else if (chat.isMigrated) {
+            Messaging.sendAlreadyMigrated(chatId, targetChat);
+        } else {
+            Messaging.sendMigrationCode(chatId, targetChat, chat.migrationCode);
+        }
     } else {
         logger.info(`Received message [${text}] on state [${chat.state}].`);
         switch (chat.state) {
