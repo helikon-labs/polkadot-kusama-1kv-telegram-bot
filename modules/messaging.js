@@ -19,16 +19,6 @@ const Data = require('./data');
 const telegramBaseURL = `https://api.telegram.org/bot${config.telegramBotAuthKey}`;
 const graphFontFamily = 'DejaVuSans';
 
-const releaseNotes = '';
-/*
-`- New notifications from chain data:
-    - ⭐️ New nominations
-    - 🥶 Chilling events
-    - 🆘 Offline offences
-- Updated two-level /settings menu
-- /settings for the new notifications`;
-*/
-
 function toFixedWithoutRounding (value, precision) {
     var factorError = Math.pow(10, 14);
     var factorTruncate = Math.pow(10, 14 - precision);
@@ -538,8 +528,37 @@ async function sendStakingInfo(chatId, stakingInfo) {
 }
 
 async function sendReleaseNotes(chatId) {
-    const message = `📣 Bot upgraded to *v${config.version}*\n\n` + releaseNotes;
-    await sendMessage(chatId, message);
+    let targetChat;
+    if (config.networkName == 'Kusama') {
+        targetChat = markdownEscape('@subvt_kusama_bot');
+    } else {
+        targetChat = markdownEscape('@subvt_polkadot_bot');
+    }
+    const releaseNotes =
+`📣 ATTENTION 📣
+
+${config.networkName} 1KV Bot is being deprecated in favour of the SubVT ${config.networkName} Bot, a super-powered upgrade of this bot rewritten in Rust that supports all ${config.networkName} validators (1KV or not), an effort [supported](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) by the Web3 Foundation Grants Program.
+
+➡️ Please use the /migrate command and follow the instructions to export your validators to the SubVT ${config.networkName} Bot (${targetChat}) and continue there.
+
+With the new bot you'll have access to all the features of this bot and many more such as:
+
+- Democracy notifications (referendum started, cancelled, voted, etc.).
+- List your NFTs and visit their URLs.
+- View open referenda and your validators' votes.
+- View network status.
+- More on-chain notifications.
+- Payouts report.
+- View nomination summary and nomination details.
+- View a summary of all your validators.
+- Fine-grained configuration of all notifications.
+
+This bot is going to be deprecated and become non-functional next Tuesday, the 24th of May at 14:30 UTC.
+
+➡️ You can begin your transition now with the /migrate command.
+
+Happy validating! 🎉`;
+    await sendMessage(chatId, releaseNotes);
 }
 
 async function sendAlreadyMigrated(chatId, targetChat) {
