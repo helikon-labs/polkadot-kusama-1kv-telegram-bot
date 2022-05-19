@@ -1,4 +1,4 @@
-<p align="center"><img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/polkadot_white_over_pink.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/kusama_canary_white_over_pink.png"></p>
+<p align="center"><img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/polkadot_white_over_pink_deprecated.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/kusama_canary_white_over_pink_deprecated.png"></p>
 
 ## Polkadot & Kusama Thousand Validators Programme (1KV) Telegram Bot
 
@@ -6,9 +6,17 @@
 
 ---
 
-### W3F Grant Program Notice
+### ⚠️ Deprecation Notice
 
-📣 This bot will soon be migrated to use the [SubVT](https://github.com/helikon-labs/subvt) (Substrate Validator Toolkit) backend, become [SubVT (Substrate Validator Toolkit) Telegram Bot](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) and support all validators of Polkadot and Kusama. The migration effort is proudly supported by the [Web3 Foundation Grants Program](https://web3.foundation/grants/). You may find more about SubVT on the initial Kusama Treasury spending [proposal](https://kusama.polkassembly.io/post/683) along with the milestones 1-3 [progress](https://kusama.polkassembly.io/post/683#06d9efa6-d070-4c78-b59f-5ea958e93ce0), also please take a look at the SubVT top-level [repository](https://github.com/helikon-labs/subvt) for more documentation.
+This bot is deprecated in favor of the [SubVT Telegram Bot](https://github.com/helikon-labs/subvt-backend/tree/development/subvt-telegram-bot), a migration effort proudly supported by the [Web3 Foundation Grants Program](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md), initially proposed in the [issue #9](https://github.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/issues/9) on this repository.
+
+You can find the SubVT Polkadot Bot available for chat [here](https://t.me/subvt_polkadot_bot), and the Kusama bot [here](https://t.me/subvt_kusama_bot). If you'd like to transfer your validators from the 1KV Bot to the SubVT Bot, just run the `/migrate` command on the 1KV Bot and follow the instructions.
+
+---
+
+### 📣 W3F Grant Program Notice
+
+This bot will soon be migrated to use the [SubVT](https://github.com/helikon-labs/subvt) (Substrate Validator Toolkit) backend, become [SubVT (Substrate Validator Toolkit) Telegram Bot](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) and support all validators of Polkadot and Kusama. The migration effort is proudly supported by the [Web3 Foundation Grants Program](https://web3.foundation/grants/). You may find more about SubVT on the initial Kusama Treasury spending [proposal](https://kusama.polkassembly.io/post/683) along with the milestones 1-3 [progress](https://kusama.polkassembly.io/post/683#06d9efa6-d070-4c78-b59f-5ea958e93ce0), also please take a look at the SubVT top-level [repository](https://github.com/helikon-labs/subvt) for more documentation.
 
 ---
 
