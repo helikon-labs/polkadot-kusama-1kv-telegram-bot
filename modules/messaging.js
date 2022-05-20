@@ -527,6 +527,17 @@ async function sendStakingInfo(chatId, stakingInfo) {
     await sendMessage(chatId, message);
 }
 
+async function sendMigrationFixedNotice(chatId) {
+    let targetChat;
+    if (config.networkName == 'Kusama') {
+        targetChat = markdownEscape('@subvt_kusama_bot');
+    } else {
+        targetChat = markdownEscape('@subvt_polkadot_bot');
+    }
+    const message = `✅ A fix has been submitted for the /migrate command. Please retry to /migrate your validators. If you still encounter an error please use the /add command on ${targetChat} to add your validators.`;
+    await sendMessage(chatId, message);
+}
+
 async function sendReleaseNotes(chatId) {
     let targetChat;
     if (config.networkName == 'Kusama') {
@@ -816,5 +827,6 @@ module.exports = {
     sendRewardsReport: sendRewardsReport,
     sendAlreadyMigrated: sendAlreadyMigrated,
     sendMigrationCode: sendMigrationCode,
-    sendNothingToMigrate: sendNothingToMigrate
+    sendNothingToMigrate: sendNothingToMigrate,
+    sendMigrationFixedNotice: sendMigrationFixedNotice
 };

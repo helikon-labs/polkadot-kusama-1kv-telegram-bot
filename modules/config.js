@@ -10,7 +10,7 @@ const polkadotSessionLengthMins = 240;
 
 const config = {
     version: '1.5.0',
-    sendReleaseNotes: true,
+    sendReleaseNotes: false,
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,
     tempFileDir: process.env.TEMP_FILE_DIR,
