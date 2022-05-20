@@ -555,7 +555,7 @@ With the new bot you'll have access to all the features of this bot and many mor
 
 This bot is going to be deprecated and become non-functional next Tuesday, the 24th of May at 14:30 UTC.
 
-➡️ You can begin your transition now with the /migrate command.
+➡️ You can begin your transition now with the /migrate command if you haven't already.
 
 Happy validating! 🎉`;
     await sendMessage(chatId, releaseNotes);
