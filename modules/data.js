@@ -6,6 +6,7 @@ const logger = require('./logging');
 const config = require('./config').config;
 
 const MongoDB = require('./mongodb');
+const Long = require('mongodb').Long;
 const Polkadot = require('./polkadot');
 
 let telegramConfig;
@@ -148,10 +149,10 @@ async function setChatVersion(chatId, version) {
 async function createChat(chatId) {
     let chatCollection = await MongoDB.getChatCollection();
     const chat = {
-        chatId: chatId,
+        chatId: Long.fromNumber(chatId),
         state: ChatState.IDLE,
-        blockNotificationPeriod: BlockNotificationPeriod.HOURLY,
-        unclaimedPayoutNotificationPeriod: UnclaimedPayoutNotificationPeriod.EVERY_ERA,
+        blockNotificationPeriod: Math.floor(BlockNotificationPeriod.HOURLY),
+        unclaimedPayoutNotificationPeriod: Math.floor(UnclaimedPayoutNotificationPeriod.EVERY_ERA),
         sendNewNominationNotifications: true,
         sendChillingEventNotifications: true,
         sendOfflineEventNotifications: true,
@@ -252,7 +253,7 @@ async function persistValidator(w3fValidator, chatId) {
         isActiveInSet: w3fValidator.isActiveInSet,
         commission: w3fValidator.commission,
         sessionKeys: w3fValidator.sessionKeys,
-        chatIds: [chatId],
+        chatIds: [Long.fromNumber(chatId)],
         lastUpdated: new Date()
     };
     const validatorCollection = await MongoDB.getValidatorCollection();
@@ -307,10 +308,14 @@ async function getValidatorByControllerAddress(controllerAddress) {
 }
 
 async function updateValidatorChatIds(validator, chatIds) {
+    const convertedChatIds = [];
+    for (let chatId of chatIds) {
+        convertedChatIds.push(Long.fromNumber(chatId));
+    }
     const validatorCollection = await MongoDB.getValidatorCollection();
     return await validatorCollection.updateOne(
         { stashAddress: validator.stashAddress },
-        { $set: { chatIds: chatIds } }
+        { $set: { chatIds: convertedChatIds } }
     );
 }
 
@@ -416,7 +421,7 @@ async function setChatBlockNotificationPeriod(chatId, blockNotificationPeriod) {
     let chatCollection = await MongoDB.getChatCollection();
     const result = await chatCollection.updateOne(
         { chatId: chatId },
-        { $set: { blockNotificationPeriod: blockNotificationPeriod } }
+        { $set: { blockNotificationPeriod: Math.floor(blockNotificationPeriod) } }
     );
     return result.result.ok && result.result.n == 1;
 }
@@ -425,7 +430,7 @@ async function setChatUnclaimedPayoutNotificationPeriod(chatId, unclaimedPayoutN
     let chatCollection = await MongoDB.getChatCollection();
     const result = await chatCollection.updateOne(
         { chatId: chatId },
-        { $set: { unclaimedPayoutNotificationPeriod: unclaimedPayoutNotificationPeriod } }
+        { $set: { unclaimedPayoutNotificationPeriod: Math.floor(unclaimedPayoutNotificationPeriod) } }
     );
     return result.result.ok && result.result.n == 1;
 }

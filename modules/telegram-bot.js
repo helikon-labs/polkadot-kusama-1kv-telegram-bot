@@ -910,6 +910,10 @@ const start = async () => {
         onFinalizedBlock,
         onEraChange
     );
+    const allValidators = await Data.getAllValidators();
+    for (let validator of allValidators) {
+        await Data.updateValidatorChatIds(validator, validator.chatIds);
+    }
     // check chat versions and send release notes if necessary
     const allChats = await Data.getAllChats();
     for (let chat of allChats) {
