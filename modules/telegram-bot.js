@@ -917,11 +917,8 @@ const start = async () => {
     // check chat versions and send release notes if necessary
     const allChats = await Data.getAllChats();
     for (let chat of allChats) {
-        if (chat.migrationCode && !chat.isMigrated) {
-            await Messaging.sendMigrationFixedNotice(chat.chatId);
-        }
-        if ((!chat.version || chat.version != config.version) && !chat.isMigrated) {
-            if (config.sendReleaseNotes) {
+        if (!chat.version || chat.version != config.version) {
+            if (!chat.isMigrated && config.sendReleaseNotes) {
                 await Messaging.sendReleaseNotes(chat.chatId);
             }
             await Data.setChatVersion(chat.chatId, config.version);

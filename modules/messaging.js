@@ -546,9 +546,9 @@ async function sendReleaseNotes(chatId) {
         targetChat = markdownEscape('@subvt_polkadot_bot');
     }
     const releaseNotes =
-`📣 ATTENTION 📣
+`📣 LAST NOTICE 📣
 
-${config.networkName} 1KV Bot is being deprecated in favour of the SubVT ${config.networkName} Bot, a super-powered upgrade of this bot rewritten in Rust that supports all ${config.networkName} validators (1KV or not), an effort [supported](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) by the Web3 Foundation Grants Program.
+${config.networkName} 1KV Bot is going to be deprecated and become non-functional tomorrow, 24th of May 2022 at 14:30UTC, in favour of the SubVT ${config.networkName} Bot, a super-powered upgrade of this bot that supports all ${config.networkName} validators (1KV or not), an effort [supported](https://github.com/w3f/Grants-Program/blob/master/applications/subvt-telegram-bot.md) by the Web3 Foundation Grants Program.
 
 ➡️ Please use the /migrate command and follow the instructions to export your validators to the SubVT ${config.networkName} Bot (${targetChat}) and continue there.
 
@@ -563,8 +563,6 @@ With the new bot you'll have access to all the features of this bot and many mor
 - View nomination summary and nomination details.
 - View a summary of all your validators.
 - Fine-grained configuration of all notifications.
-
-This bot is going to be deprecated and become non-functional next Tuesday, the 24th of May at 14:30 UTC.
 
 ➡️ You can begin your transition now with the /migrate command if you haven't already.
 
