@@ -40,8 +40,9 @@ async function start(onFinalizedBlock, onNewEra) {
     logger.info(`Get MongoDB connection.`);
     await MongoDB.connectMongoDB();
     await migrate(config.version);
-    logger.info(`Get ${config.networkName} RPC connection.`);
-    await Polkadot.connectPolkadot(onFinalizedBlock, onNewEra);
+    // logger.info(`Get ${config.networkName} RPC connection.`);
+    // deprecate
+    // await Polkadot.connectPolkadot(onFinalizedBlock, onNewEra);
     telegramConfig = await initTelegram();
 }
 

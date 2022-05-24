@@ -209,29 +209,19 @@ async function processCallbackQuery(query) {
     }
 }
 
-function getMigrationTargetChat() {
-    if (config.networkName == 'Kusama') {
-        return markdownEscape('@subvt_kusama_bot');
-    } else {
-        return markdownEscape('@subvt_polkadot_bot');
-    }
-}
-
-function generateMigrationCode() {
-    const migrationCode = Math.floor((Math.random() * 53739 + 12728));
-    return migrationCode.toString();
-}
-
 async function processTelegramUpdate(update) {
     if (update.callback_query) {
-        processCallbackQuery(update.callback_query);
+        const chatId = update.callback_query.message.chat.id;
+        if (chatId) {
+            // send deprecation warning
+            await Messaging.sendDeprecationWarning(chatId);
+        }
         return;
     }
     if (!update.message) { // TODO this is a temporary fix - check why the crash is happening
         return;
     }
     const chatId = update.message.chat.id;
-    var isGroupChat = update.message.chat.type == 'group';
     let chat = await Data.getChatById(chatId);
     if (!chat) {
         logger.info(`Chat does not exist, create it.`);
@@ -239,216 +229,11 @@ async function processTelegramUpdate(update) {
     }
     logger.info(`Processing Telegram update id ${update.update_id}.`);
     if (chat.isMigrated) {
-        let targetChat = getMigrationTargetChat();
-        Messaging.sendAlreadyMigrated(chatId, targetChat);
+        Messaging.sendAlreadyMigrated(chatId);
         return;
     }
-    var text;
-    if (isGroupChat) {
-        if (update.message && update.message.group_chat_created) {
-            Messaging.sendHelp(chatId);
-            return;
-        } else if (update.message.text) {
-            text = update.message.text.trim();
-            text = text.replace(`@${process.env.TELEGRAM_BOT_USERNAME}`, '');
-        } else {
-            Messaging.sendUnrecognizedCommand(chatId);
-            return;
-        }
-    } else if (update.message.text) {
-        text = update.message.text.trim();
-    } else {
-        logger.error(`Message text is null or empty.`);
-        Messaging.sendUnrecognizedCommand(chatId);
-        return;
-    }
-    if (text == `/start` || text == `/help`) {
-        logger.info(`${text} received.`);
-        Data.setChatState(chatId, Data.ChatState.IDLE);
-        Messaging.sendHelp(chatId);
-        return;
-    } else if (text == `/about`) {
-        logger.info(`${text} received.`);
-        Messaging.sendAbout(chatId);
-        Data.setChatState(chatId, Data.ChatState.IDLE);
-        return;
-    } else if (text.startsWith(`/add`)) {
-        const tokens = text.split(/\s+/);
-        if (
-            (tokens.length == 1 && tokens[0] == `/add`)
-            || (tokens.length > 1 && !Polkadot.isValidAddress(tokens[1]))
-        ) {
-            logger.info(`/add received.`);
-            const validators = await Data.getValidatorsForChat(chatId);
-            if (validators.length >= maxValidatorsPerChat) {
-                await Messaging.sendChatHasMaxValidators(chatId, maxValidatorsPerChat);
-                Data.setChatState(chatId, Data.ChatState.IDLE);
-            } else {
-                await Messaging.sendAddValidator(chatId);
-                Data.setChatState(chatId, Data.ChatState.ADD);
-            }
-        } else if (tokens.length > 1 && Polkadot.isValidAddress(tokens[1])) {
-            await Data.setChatState(chatId, Data.ChatState.ADD);
-            processAddRequest(tokens[1], chatId);
-        } else {
-            await Messaging.sendUnrecognizedCommand(chatId);
-        }
-    } else if (text == `/remove`) {
-        logger.info(`/remove received.`);
-        const validators = await Data.getValidatorsForChat(chatId);
-        if (validators.length < 1) {
-            Messaging.sendNoValidators(chatId);
-            return;
-        }
-        await sendValidatorList(
-            chatId,
-            validators,
-            'Sure, please select the validator to be removed.',
-            Data.ChatState.REMOVE
-        );
-    } else if (text == `/validatorinfo` || text == `/vi`) {
-        logger.info(`/validatorinfo received.`);
-        const validators = await Data.getValidatorsForChat(chatId);
-        if (validators.length < 1) {
-            Messaging.sendNoValidators(chatId);
-        } else if (validators.length == 1) {
-            Messaging.sendValidatorInfo(chatId, validators[0]);
-            Data.setChatState(chatId, Data.ChatState.IDLE);
-        } else {
-            await sendValidatorList(
-                chatId,
-                validators,
-                'Ok, please select the validator from below.',
-                Data.ChatState.VALIDATOR_INFO
-            );
-        }
-    } else if (text == `/settings`) {
-        logger.info(`/settings received.`);
-        const message = await Messaging.sendSettingsMenu(chat);
-        if (chat.lastSettingsMessageId) {
-            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsCommandMessageId);
-            await Messaging.deleteMessage(chat.chatId, chat.lastSettingsMessageId);
-        }
-        if (message != null) {
-            Data.setChatLastSettingsCommandMessageId(chat.chatId, update.message.message_id);
-            Data.setChatLastSettingsMessageId(chat.chatId, message.message_id);
-        }
-        Data.setChatState(chatId, Data.ChatState.IDLE);
-    } else if (text == `/stakinginfo`) {
-        logger.info(`/stakinginfo received.`);
-        const validators = await Data.getValidatorsForChat(chatId);
-        if (validators.length < 1) {
-            Messaging.sendNoValidators(chatId);
-        } else if (validators.length == 1) {
-            Messaging.sendLoadingStakingInfo(chatId);
-            if (chat.state != Data.ChatState.STAKING_INFO_LOADING) {
-                Data.setChatState(chatId, Data.ChatState.STAKING_INFO_LOADING);
-                const stakingInfo = await Data.getStakingInfo(validators[0].stashAddress);
-                Messaging.sendStakingInfo(chatId, stakingInfo);
-                Data.setChatState(chatId, Data.ChatState.IDLE);
-            }
-        } else {
-            if (chat.state == Data.ChatState.STAKING_INFO_LOADING) {
-                Messaging.sendLoadingStakingInfo(chatId);
-            } else {
-                await sendValidatorList(
-                    chatId,
-                    validators,
-                    'Sure, staking info for which validator? Please select from below.',
-                    Data.ChatState.STAKING_INFO_SELECT_VALIDATOR
-                );
-            }
-        }
-    } else if (text == `/rewards`) {
-        const validators = await Data.getValidatorsForChat(chatId);
-        await Messaging.sendAddressSelectionForRewards(validators, chatId);
-        await Data.setChatState(chatId, Data.ChatState.REWARDS_ENTER_ADDRESS);
-    } else if (text == `/migrate`) {
-        const validators = await Data.getValidatorsForChat(chatId);
-        let targetChat = getMigrationTargetChat();
-        if (validators.length < 1) {
-            Messaging.sendNothingToMigrate(chatId, targetChat);
-        } else if (!chat.migrationCode) {
-            let migrationCode = generateMigrationCode();
-            while (await Data.getChatByMigrationCode(migrationCode)) {
-                migrationCode = generateMigrationCode();
-            }
-            await Data.setChatMigrationCode(chatId, migrationCode);
-            Messaging.sendMigrationCode(chatId, targetChat, migrationCode);
-        } else if (chat.isMigrated) {
-            Messaging.sendAlreadyMigrated(chatId, targetChat);
-        } else {
-            Messaging.sendMigrationCode(chatId, targetChat, chat.migrationCode);
-        }
-    } else {
-        logger.info(`Received message [${text}] on state [${chat.state}].`);
-        switch (chat.state) {
-            case Data.ChatState.IDLE:
-                if (!isGroupChat) {
-                    await Messaging.sendUnrecognizedCommand(chatId);
-                }
-                break;
-            case Data.ChatState.ADD:
-                processAddRequest(text, chatId);
-                break;
-            case Data.ChatState.REMOVE:
-                const validatorToRemove = await Data.getValidatorByName(text);
-                if (!validatorToRemove) {
-                    await Messaging.sendValidatorNotFoundByName(chatId, text);
-                } else {
-                    const success = await Data.removeValidator(validatorToRemove, chatId);
-                    if (success) {
-                        await Messaging.sendValidatorRemoved(chatId, text);
-                    } else {
-                        await Messaging.sendUnexpectedError(chatId);
-                    }
-                }
-                Data.setChatState(chatId, Data.ChatState.IDLE);
-                break;
-            case Data.ChatState.VALIDATOR_INFO:
-                const infoValidator = await Data.getValidatorByName(text);
-                if (!infoValidator) {
-                    await Messaging.sendValidatorNotFoundByName(chatId, text);
-                } else {
-                    await Messaging.sendValidatorInfo(chatId, infoValidator);
-                }
-                Data.setChatState(chatId, Data.ChatState.IDLE);
-                break;
-            case Data.ChatState.STAKING_INFO_SELECT_VALIDATOR:
-                const stakeInfoValidator = await Data.getValidatorByName(text);
-                if (!stakeInfoValidator) {
-                    await Messaging.sendValidatorNotFoundByName(chatId, text);
-                } else {
-                    await Messaging.sendLoadingStakingInfo(chatId);
-                    Data.setChatState(chatId, Data.ChatState.STAKING_INFO_LOADING);
-                    const stakingInfo = await Data.getStakingInfo(stakeInfoValidator.stashAddress);
-                    Messaging.sendStakingInfo(chatId, stakingInfo);
-                }
-                Data.setChatState(chatId, Data.ChatState.IDLE);
-                break;
-            case Data.ChatState.REWARDS_ENTER_ADDRESS:
-                const reportValidator = await Data.getValidatorByName(text);
-                let address;
-                if (reportValidator) {
-                    address = reportValidator.stashAddress;
-                    
-                } else if (Polkadot.isValidAddress(text)) {
-                    address = text;
-                }
-                if (address) {
-                    const rewards = await Data.getRewards(address);
-                    Messaging.sendRewardsReport(chatId, address, rewards);
-                } else {
-                    Messaging.sendMessage(chatId, 'Cannot generate rewards report: not a valid address or validator name.');
-                }
-                await Data.setChatState(chatId, Data.ChatState.IDLE);
-                break;
-            default:
-                // should never reach here
-                logger.error(`Error. Unrecognized chat state: ${chat.state}`);
-                break;
-        }
-    }
+    // send deprecation warning
+    await Messaging.sendDeprecationWarning(chatId);
 }
 
 async function processAddRequest(stashAddress, chatId) {
@@ -927,8 +712,11 @@ const start = async () => {
 
     logger.info(`Start receiving Telegram updates.`);
     getTelegramUpdates();
-    start1KVUpdateJob();
-    startPendingNotificationSender();
+    /**
+     * DEPRECATED
+     */
+    // start1KVUpdateJob();
+    // startPendingNotificationSender();
 }
 
 const stop = async () => {

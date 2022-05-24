@@ -9,7 +9,7 @@ const polkadotEraLengthMins = 1440;
 const polkadotSessionLengthMins = 240;
 
 const config = {
-    version: '1.5.1',
+    version: '1.5.2',
     sendReleaseNotes: true,
     mongoDBConnectionURL: process.env.MONGODB_CONNECTION_URL,
     dbName: process.env.DB_NAME,
