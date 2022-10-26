@@ -1,4 +1,7 @@
-<p align="center"><img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/polkadot_white_over_pink_deprecated.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img width="65" src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/main/readme_files/kusama_canary_white_over_pink_deprecated.png"></p>
+<p align="center"><img width="65" 
+src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/deprecated/readme_files/polkadot_white_over_pink_deprecated.png">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img 
+width="65" 
+src="https://raw.githubusercontent.com/helikon-labs/polkadot-kusama-1kv-telegram-bot/deprecated/readme_files/kusama_canary_white_over_pink_deprecated.png"></p>
 
 ## Polkadot & Kusama Thousand Validators Programme (1KV) Telegram Bot
 
